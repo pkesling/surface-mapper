@@ -1,0 +1,40 @@
+{
+  "name": "neon",
+  "style": "neon",
+  "colormap": "turbo",
+  "diverging_colormap": "coolwarm",
+  "background_color": "#05060a",
+  "neighbors_fill": "#151822",
+  "neighbors_alpha": 0.35,
+  "water_fill": "#0b1f3a",
+  "water_alpha": 0.85,
+  "outline_color": "#5a5170",
+  "outline_width": 1.2,
+  "edge_color": null,
+  "edge_width": 0.1,
+  "legend": {
+    "show": true,
+    "location": "bottom",
+    "label": null
+  },
+  "title": {
+    "enabled": true,
+    "fontsize": 17,
+    "pad": 8.0
+  },
+  "subtitle": {
+    "enabled": true,
+    "fontsize": 11
+  },
+  "layout": {
+    "mode": "single",
+    "quad_titles": true
+  },
+  "scale_defaults": {
+    "scale": "gamma",
+    "gamma": 0.6
+  },
+  "framing": {
+    "pad_pct": 0.05
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "name": "classic",
+  "style": "classic",
+  "colormap": "viridis",
+  "diverging_colormap": "RdBu_r",
+  "background_color": "#ffffff",
+  "neighbors_fill": "#e6e6e6",
+  "neighbors_alpha": 0.45,
+  "water_fill": "#d9ecff",
+  "water_alpha": 0.9,
+  "outline_color": "#4a4a4a",
+  "outline_width": 1.1,
+  "edge_color": null,
+  "edge_width": 0.1,
+  "legend": {
+    "show": true,
+    "location": "right",
+    "label": null
+  },
+  "title": {
+    "enabled": true,
+    "fontsize": 16,
+    "pad": 8.0
+  },
+  "subtitle": {
+    "enabled": true,
+    "fontsize": 11
+  },
+  "layout": {
+    "mode": "single",
+    "quad_titles": true
+  },
+  "scale_defaults": {
+    "scale": "gamma",
+    "gamma": 0.6
+  },
+  "framing": {
+    "pad_pct": 0.05
+  }
+}
