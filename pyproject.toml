@@ -8,6 +8,26 @@ version = "0.1.0"
 description = "Geospatial surface aggregation + visualization engine (BYOD)"
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+authors = [
+  { name = "Phillip Kesling" },
+]
+keywords = [
+  "geospatial",
+  "mapping",
+  "visualization",
+  "h3",
+  "duckdb",
+  "cartography",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: GIS",
+]
 dependencies = [
   "typer>=0.12.0",
   "rich>=13.7.0",
@@ -19,11 +39,19 @@ dependencies = [
   "pyproj>=3.6.0",
   "matplotlib>=3.8.0",
   "h3>=4.0.0",
-  "ipykernel>=7.2.0",
   "pyvista>=0.47.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/pkesling/surface-mapper"
+Source = "https://github.com/pkesling/surface-mapper"
+Issues = "https://github.com/pkesling/surface-mapper/issues"
+
 [project.optional-dependencies]
-dev = ["pytest>=9.0.2"]
+dev = [
+  "pytest>=9.0.2",
+  "ruff>=0.6.0",
+]
 render3d = ["pyvista>=0.44.0"]
 
 [project.scripts]
@@ -37,3 +65,6 @@ where = ["src"]
 markers = [
   "network: tests that require network access",
 ]
+
+[tool.ruff]
+target-version = "py311"

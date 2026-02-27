@@ -5,6 +5,7 @@ import pytest
 from typer.testing import CliRunner
 
 from surface_mapper.cli.app import app
+from surface_mapper.geodata.defaults import DEFAULT_LAKES, DEFAULT_STATES
 
 runner = CliRunner()
 
@@ -22,8 +23,8 @@ def test_geodata_fetch_defaults_smoke(tmp_path: Path) -> None:
     lakes = list((tmp_path / "lakes").glob("*.shp"))
     derived = tmp_path / "derived"
 
-    assert any(p.name == "cb_2024_us_state_20m.shp" for p in states)
-    assert any(p.name == "ne_10m_lakes.shp" for p in lakes)
+    assert any(p.name == f"{DEFAULT_STATES.expected_basename}.shp" for p in states)
+    assert any(p.name == f"{DEFAULT_LAKES.expected_basename}.shp" for p in lakes)
     assert (derived / "WI_boundary.geojson").exists()
     assert (derived / "WI_boundary_wgs84.geojson").exists()
     assert (derived / "WI_neighbors.geojson").exists()

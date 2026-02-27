@@ -67,7 +67,7 @@ class RenderSpec:
     preset_name: str = "classic"
     title: str | None = None
     subtitle: str | None = None
-    out_path: str = "out.png"
+    out_path: str = "outputs/attention.png"
 
 
 @dataclass(frozen=True)

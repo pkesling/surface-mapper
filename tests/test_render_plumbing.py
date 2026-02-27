@@ -84,6 +84,12 @@ def test_load_surface_and_render_flat_cli(tmp_path: Path) -> None:
             "6",
             "--region-file",
             str(region_path),
+            "--width-px",
+            "1600",
+            "--height-px",
+            "1000",
+            "--dpi",
+            "150",
             "--out",
             str(out_path),
         ],
@@ -94,6 +100,10 @@ def test_load_surface_and_render_flat_cli(tmp_path: Path) -> None:
     assert sidecar.exists()
     payload = json.loads(sidecar.read_text(encoding="utf-8"))
     assert payload.get("rowcount") == 2
+    png_bytes = out_path.read_bytes()
+    assert b"surface_mapper" in png_bytes
+    assert b"surface_mapper_version" in png_bytes
+    assert b"EBD_relJan-2026" in png_bytes
 
 
 def test_render_flat_cli_supports_json_config(tmp_path: Path) -> None:

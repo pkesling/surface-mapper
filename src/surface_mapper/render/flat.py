@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, UTC
 from pathlib import Path
 
 import matplotlib
@@ -23,6 +24,8 @@ from surface_mapper.render.layers import load_layer, reproject_to, select_polygo
 from surface_mapper.render.load_surface import load_surface
 from surface_mapper.render.scales import scale_values
 from surface_mapper.render.styles import get_cmap
+from surface_mapper import __version__
+from surface_mapper.attribution import dataset_attribution
 
 logger = logging.getLogger("surface_mapper.render.flat")
 
@@ -163,6 +166,49 @@ def _draw_outline(ax, spec: RenderSpec, boundary_gdf) -> None:
     )
 
 
+def _build_png_metadata(query: SurfaceQuery, spec: RenderSpec, rowcount: int) -> dict[str, str]:
+    attribution = dataset_attribution(query.dataset)
+    payload = {
+        "surface_mapper_version": __version__,
+        "renderer": "flat",
+        "created_utc": datetime.now(UTC).isoformat(),
+        "query": {
+            "db_path": query.db_path,
+            "table": query.table,
+            "dataset": query.dataset,
+            "metric": query.metric,
+            "grid": query.grid,
+            "resolution": query.resolution,
+            "time_slice": query.time_slice,
+            "min_support": query.min_support,
+        },
+        "spec": {
+            "style": spec.style,
+            "scale": spec.scale,
+            "gamma": spec.gamma,
+            "width_px": spec.width_px,
+            "height_px": spec.height_px,
+            "dpi": spec.dpi,
+            "projection": spec.projection,
+            "layout_mode": spec.layout_mode,
+            "preset_name": spec.preset_name,
+            "rotate_deg": spec.rotate_deg,
+            "region_file": spec.region_file,
+            "neighbors_file": spec.neighbors_file,
+            "water_file": spec.water_file,
+            "mask_water": spec.mask_water,
+            "out_path": spec.out_path,
+        },
+        "rowcount": rowcount,
+    }
+    if attribution is not None:
+        payload["data_attribution"] = attribution
+    return {
+        "Software": f"surface-mapper {__version__}",
+        "surface_mapper": json.dumps(payload, separators=(",", ":"), sort_keys=True),
+    }
+
+
 class FlatRenderer(Renderer):
     def render(self, query: SurfaceQuery, spec: RenderSpec) -> RenderArtifacts:
         projection = _resolve_projection(spec.projection)
@@ -243,7 +289,13 @@ class FlatRenderer(Renderer):
 
         output_path = Path(spec.out_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(output_path, format=spec.output_format, bbox_inches="tight", pad_inches=0.05)
+        fig.savefig(
+            output_path,
+            format=spec.output_format,
+            bbox_inches="tight",
+            pad_inches=0.05,
+            metadata=_build_png_metadata(query, spec, len(df)),
+        )
         plt.close(fig)
 
         self._write_stats(spec.out_path, df)
@@ -363,7 +415,13 @@ class FlatRenderer(Renderer):
 
         output_path = Path(spec.out_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(output_path, format=spec.output_format, bbox_inches="tight", pad_inches=0.05)
+        fig.savefig(
+            output_path,
+            format=spec.output_format,
+            bbox_inches="tight",
+            pad_inches=0.05,
+            metadata=_build_png_metadata(query, spec, len(pd.concat(non_empty, ignore_index=True))),
+        )
         plt.close(fig)
 
         self._write_stats(spec.out_path, pd.concat(non_empty, ignore_index=True))

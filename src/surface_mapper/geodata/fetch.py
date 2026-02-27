@@ -183,6 +183,7 @@ def ensure_derived_defaults(
             boundary_geojson_path=boundary_path,
             out_path=lakes_path,
             crs=crs,
+            neighbors_geojson_path=neighbors_path,
         )
     else:
         logger.debug("Derived lakes already exists; skipping path=%s", lakes_path)

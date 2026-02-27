@@ -49,7 +49,7 @@ def test_derive_outputs_from_geojson_inputs(tmp_path: Path) -> None:
     derive_boundary(states_path, state="WI", out_path=boundary_out, crs="EPSG:5070")
     derive_boundary(states_path, state="WI", out_path=boundary_wgs84_out, crs="EPSG:4326")
     derive_neighbors(states_path, neighbor_codes=["MN", "IA", "IL", "MI"], out_path=neighbors_out, crs="EPSG:5070")
-    derive_lakes(lakes_path, boundary_out, lakes_out, crs="EPSG:5070")
+    derive_lakes(lakes_path, boundary_out, lakes_out, crs="EPSG:5070", neighbors_geojson_path=neighbors_out)
 
     boundary_gdf = gpd.read_file(boundary_out)
     boundary_wgs84_gdf = gpd.read_file(boundary_wgs84_out)
@@ -63,3 +63,7 @@ def test_derive_outputs_from_geojson_inputs(tmp_path: Path) -> None:
     assert lakes_out.exists() and lakes_out.stat().st_size > 0
     assert derived_parts == source_parts
     assert derived_wgs84_parts == source_parts
+
+    lakes_gdf = gpd.read_file(lakes_out)
+    assert "Lake A" in set(lakes_gdf["name"])
+    assert "Lake B" in set(lakes_gdf["name"])

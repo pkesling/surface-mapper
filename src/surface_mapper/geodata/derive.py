@@ -61,7 +61,13 @@ def derive_neighbors(states_path: Path, neighbor_codes: list[str], out_path: Pat
     return out_path
 
 
-def derive_lakes(lakes_path: Path, boundary_geojson_path: Path, out_path: Path, crs: str) -> Path:
+def derive_lakes(
+    lakes_path: Path,
+    boundary_geojson_path: Path,
+    out_path: Path,
+    crs: str,
+    neighbors_geojson_path: Path | None = None,
+) -> Path:
     """Derive a lakes GeoJSON suitable for *rendering context*.
 
     We intentionally clip lakes to a padded bounding box around the state boundary
@@ -74,19 +80,26 @@ def derive_lakes(lakes_path: Path, boundary_geojson_path: Path, out_path: Path, 
 
     lakes = gpd.read_file(lakes_path)
     boundary = gpd.read_file(boundary_geojson_path)
+    neighbors = gpd.read_file(neighbors_geojson_path) if neighbors_geojson_path is not None else None
 
     if lakes.empty:
         raise ValueError(f"Lakes layer is empty: {lakes_path}")
     if boundary.empty:
         raise ValueError(f"Boundary layer is empty: {boundary_geojson_path}")
+    if neighbors is not None and neighbors.empty:
+        neighbors = None
 
     if lakes.crs is None:
         lakes = lakes.set_crs("EPSG:4326")
     if boundary.crs is None:
         boundary = boundary.set_crs("EPSG:4326")
+    if neighbors is not None and neighbors.crs is None:
+        neighbors = neighbors.set_crs("EPSG:4326")
 
     lakes = lakes.to_crs(crs)
     boundary = boundary.to_crs(crs)
+    if neighbors is not None:
+        neighbors = neighbors.to_crs(crs)
 
     # Repair invalid lake geometries if possible (helps later union/difference operations).
     if make_valid is not None:
@@ -97,8 +110,15 @@ def derive_lakes(lakes_path: Path, boundary_geojson_path: Path, out_path: Path, 
         lakes = lakes.copy()
         lakes["geometry"] = lakes.geometry.buffer(0)
 
-    # Clip to a padded bbox around the boundary.
-    minx, miny, maxx, maxy = boundary.total_bounds
+    # Clip to a padded bbox around the render context extent (boundary + neighbors when provided).
+    context = boundary
+    if neighbors is not None:
+        context = gpd.GeoDataFrame(
+            geometry=[*boundary.geometry, *neighbors.geometry],
+            crs=boundary.crs,
+        )
+
+    minx, miny, maxx, maxy = context.total_bounds
     pad = LAKES_BOUNDARY_BUFFER_METERS
     bbox = box(minx - pad, miny - pad, maxx + pad, maxy + pad)
     bbox_gdf = gpd.GeoDataFrame({"_": [1]}, geometry=[bbox], crs=boundary.crs)

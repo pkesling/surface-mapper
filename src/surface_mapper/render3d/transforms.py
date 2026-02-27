@@ -4,12 +4,15 @@ from dataclasses import dataclass
 from typing import Literal
 
 import geopandas as gpd
+import numpy as np
 from shapely.affinity import scale as scale_geom
 from shapely.affinity import translate as translate_geom
 
 
 ScaleUnits = Literal["m", "km"]
 CenterOrigin = Literal["region", "data"]
+TARGET_XY_SIZE = 10.0
+_EPS = 1e-12
 
 
 @dataclass(frozen=True)
@@ -36,6 +39,75 @@ def transform_xy_gdf(gdf: gpd.GeoDataFrame, ox: float, oy: float, scale_factor: 
     transformed = gdf.copy()
     transformed["geometry"] = transformed.geometry.apply(lambda geom: transform_xy(geom, ox, oy, scale_factor))
     return transformed
+
+
+def normalize_xy_points(
+    points: np.ndarray,
+    target_size: float = TARGET_XY_SIZE,
+    enabled: bool = True,
+) -> tuple[np.ndarray, float]:
+    arr = np.asarray(points, dtype=float)
+    if arr.ndim != 2 or arr.shape[1] < 2:
+        raise ValueError("Expected points as an array shaped (n, 2+) with X and Y coordinates.")
+
+    out = arr.copy()
+    if not enabled or out.shape[0] == 0:
+        return out, 1.0
+
+    span_x = float(np.max(out[:, 0]) - np.min(out[:, 0]))
+    span_y = float(np.max(out[:, 1]) - np.min(out[:, 1]))
+    max_span = max(span_x, span_y)
+    if max_span <= _EPS:
+        return out, 1.0
+
+    xy_scale = float(target_size) / max_span
+    out[:, 0] *= xy_scale
+    out[:, 1] *= xy_scale
+    return out, xy_scale
+
+
+def scale_xy_points(points: np.ndarray, xy_scale: float) -> np.ndarray:
+    arr = np.asarray(points, dtype=float)
+    if arr.ndim != 2 or arr.shape[1] < 2:
+        raise ValueError("Expected points as an array shaped (n, 2+) with X and Y coordinates.")
+    if abs(float(xy_scale) - 1.0) <= _EPS:
+        return arr.copy()
+    out = arr.copy()
+    out[:, 0] *= float(xy_scale)
+    out[:, 1] *= float(xy_scale)
+    return out
+
+
+def _copy_mesh(mesh):
+    if hasattr(mesh, "copy"):
+        try:
+            return mesh.copy(deep=True)
+        except TypeError:
+            return mesh.copy()
+    return mesh
+
+
+def normalize_mesh_xy(mesh, target_size: float = TARGET_XY_SIZE, enabled: bool = True):
+    points = getattr(mesh, "points", None)
+    if points is None:
+        raise ValueError("Mesh does not expose point coordinates via .points for XY normalization.")
+    normalized_points, xy_scale = normalize_xy_points(points, target_size=target_size, enabled=enabled)
+    if abs(xy_scale - 1.0) <= _EPS:
+        return mesh, 1.0
+    mesh_out = _copy_mesh(mesh)
+    mesh_out.points = normalized_points
+    return mesh_out, xy_scale
+
+
+def scale_mesh_xy(mesh, xy_scale: float):
+    if mesh is None or abs(float(xy_scale) - 1.0) <= _EPS:
+        return mesh
+    points = getattr(mesh, "points", None)
+    if points is None:
+        raise ValueError("Mesh does not expose point coordinates via .points for XY scaling.")
+    mesh_out = _copy_mesh(mesh)
+    mesh_out.points = scale_xy_points(points, xy_scale=float(xy_scale))
+    return mesh_out
 
 
 def _region_center(boundary_gdf: gpd.GeoDataFrame) -> tuple[float, float]:

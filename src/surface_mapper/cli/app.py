@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
+import tempfile
 import time
+from enum import Enum
 from pathlib import Path
 from typing import Any, cast
 
@@ -13,12 +16,22 @@ from shapely.ops import unary_union
 from surface_mapper import __version__
 from surface_mapper.config import load_json_config, render_3d_config, render_flat_config
 from surface_mapper.contracts.normalized import NORMALIZED_EVENTS_TABLE, NORMALIZED_OBS_TABLE
+from surface_mapper.attribution import dataset_attribution
 from surface_mapper.geodata import default_geodata_dest, ensure_derived_defaults
 from surface_mapper.geodata.defaults import DEFAULT_DATASETS, DEFAULT_STATE_NEIGHBORS
 from surface_mapper.ingest import IngestRequest, resolve_adapter
 from surface_mapper.render.contracts import RenderScale, RenderSpec, RenderStyle, SurfaceQuery
 from surface_mapper.render.flat import FlatRenderer, stats_sidecar_path
 from surface_mapper.render.layers import load_layer, reproject_to, select_polygon
+from surface_mapper.render.blender_runner import (
+    build_blender_command,
+    find_repo_root,
+    format_command,
+    resolve_blender_binary,
+    resolve_script_path,
+    resolve_template_path,
+    run_blender_headless,
+)
 from surface_mapper.render.presets import RenderPreset
 from surface_mapper.render.scales import scale_values
 from surface_mapper.render.styles import get_cmap
@@ -26,7 +39,13 @@ from surface_mapper.render3d.builder import Surface3DSpec, build_surface_mesh, g
 from surface_mapper.render3d.hex_prism import polygon_gdf_to_flat_mesh
 from surface_mapper.render3d.io import export_mesh, write_export_metadata
 from surface_mapper.render3d.preview import render_preview
-from surface_mapper.render3d.transforms import resolve_xy_transform, transform_xy_gdf
+from surface_mapper.render3d.transforms import (
+    TARGET_XY_SIZE,
+    normalize_mesh_xy,
+    resolve_xy_transform,
+    scale_mesh_xy,
+    transform_xy_gdf,
+)
 from surface_mapper.store.duckdb_store import (
     DuckDBStore,
     count_rows,
@@ -51,6 +70,17 @@ render_app = typer.Typer(help="Render surface outputs.")
 geodata_app = typer.Typer(help="Download/manage default geodata layers.")
 logger = logging.getLogger("surface_mapper.cli")
 
+SURFACE_METRIC_ALIASES: dict[str, str] = {
+    "attention": "attention",
+    "richness_unique": "richness_unique",
+    "richness_mean": "richness_mean",
+    "richness": "richness_unique",
+    "richness-unique": "richness_unique",
+    "richness-mean": "richness_mean",
+    "unique": "richness_unique",
+    "mean": "richness_mean",
+}
+
 
 def metric_completion() -> list[str]:
     return ["attention", "richness_unique", "richness_mean"]
@@ -74,6 +104,19 @@ def preset_completion() -> list[str]:
 
 def style_completion() -> list[str]:
     return ["classic", "neon"]
+
+
+def blender_preset_completion() -> list[str]:
+    return ["default", "classic", "neon"]
+
+
+class BlenderEngine(str, Enum):
+    CYCLES = "CYCLES"
+    EEVEE = "EEVEE"
+
+
+class PipelineOutputType(str, Enum):
+    FLAT = "flat"
 
 
 def scale_completion() -> list[str]:
@@ -102,6 +145,22 @@ def time_slice_completion() -> list[str]:
 
 def log_level_completion() -> list[str]:
     return ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+
+
+def surface_metric_completion() -> list[str]:
+    return sorted(SURFACE_METRIC_ALIASES.keys())
+
+
+def surface_resolution_completion() -> list[str]:
+    return [str(v) for v in (3, 4, 5, 6, 7, 8, 9, 10)]
+
+
+def surface_table_completion() -> list[str]:
+    return ["surface_cells", "surface_cells_seasonal"]
+
+
+def _resolve_surface_metric(metric: str) -> str | None:
+    return SURFACE_METRIC_ALIASES.get(metric.strip().lower())
 
 
 def _parse_log_level(value: str) -> int | None:
@@ -254,15 +313,25 @@ def surface(
     metric: str = typer.Option(
         "attention",
         "--metric",
-        help="Metric to build (attention, richness, etc.).",
-        autocompletion=metric_completion,
+        help="Metric to build (attention, richness_unique, richness_mean). Aliases: richness, unique, mean.",
+        autocompletion=surface_metric_completion,
     ),
-    res: int = typer.Option(6, "--res", help="Grid resolution (e.g., H3 resolution)."),
+    res: int = typer.Option(
+        6,
+        "--res",
+        help="Grid resolution (e.g., H3 resolution).",
+        autocompletion=surface_resolution_completion,
+    ),
     seasonal: bool = typer.Option(False, "--seasonal/--no-seasonal", help="Build seasonal surface slices."),
     min_checklists: int | None = typer.Option(
         None, "--min-checklists", help="Optional checklist threshold (richness metrics only)."
     ),
-    out_table: str = typer.Option("surface_cells", "--out-table", help="Destination surface table name."),
+    out_table: str = typer.Option(
+        "surface_cells",
+        "--out-table",
+        help="Destination surface table name.",
+        autocompletion=surface_table_completion,
+    ),
     force_event_cells: bool = typer.Option(
         False,
         "--force-event-cells/--no-force-event-cells",
@@ -275,12 +344,15 @@ def surface(
         "richness_unique": write_surface_richness_unique,
         "richness_mean": write_surface_richness_mean,
     }
-    if metric not in writer_map:
+    resolved_metric = _resolve_surface_metric(metric)
+    if resolved_metric is None:
         logger.error("Unsupported surface metric '%s'", metric)
         raise typer.BadParameter(
-            "Unsupported metric. Use one of: attention, richness_unique, richness_mean.",
+            "Unsupported metric. Use one of: attention, richness_unique, richness_mean. "
+            "Aliases: richness, unique, mean.",
             param_hint="--metric",
         )
+    metric = resolved_metric
 
     if metric == "attention" and min_checklists is not None:
         logger.warning("Ignoring --min-checklists for attention metric")
@@ -368,6 +440,140 @@ def surface(
         logger.info("Closed DuckDB connection: %s", db)
 
 
+@app.command("run")
+def run_pipeline(
+    dataset: str = typer.Option("ebird-ebd", "--dataset", help="Dataset adapter name.", autocompletion=dataset_completion),
+    obs: str = typer.Option(..., "--obs", help="Path to observations TSV."),
+    sampling: str | None = typer.Option(None, "--sampling", help="Path to sampling TSV (required for eBird)."),
+    out: str = typer.Option(..., "--out", help="Output image path."),
+    output_type: PipelineOutputType = typer.Option(PipelineOutputType.FLAT, "--output-type", help="Output type."),
+    db: str | None = typer.Option(None, "--db", help="Optional DuckDB path. If omitted, uses a temporary DB."),
+    work_dir: str | None = typer.Option(
+        None,
+        "--work-dir",
+        help="Working directory for temporary artifacts when --db is omitted.",
+    ),
+    keep_artifacts: bool = typer.Option(
+        False,
+        "--keep-artifacts",
+        help="Keep generated intermediate artifacts (temporary DB/work dir).",
+    ),
+    metric: str = typer.Option("attention", "--metric", help="Surface metric.", autocompletion=metric_completion),
+    res: int = typer.Option(6, "--res", help="Grid resolution."),
+    preset: str = typer.Option("classic", "--preset", help="Flat render preset.", autocompletion=preset_completion),
+    batch_size: int = typer.Option(50000, "--batch-size", min=1, help="Ingest batch size."),
+    progress: bool = typer.Option(False, "--progress/--no-progress", help="Show ingestion progress output."),
+    progress_every: int = typer.Option(200000, "--progress-every", min=1, help="Progress interval in rows."),
+    python_parser: bool = typer.Option(
+        False,
+        "--python-parser/--no-python-parser",
+        help="Use Python CSV parser fallback instead of DuckDB-native parser.",
+    ),
+) -> None:
+    """Run ingest -> surface -> render with low-friction defaults."""
+    obs_path = Path(obs).expanduser().resolve()
+    if not obs_path.exists():
+        raise typer.BadParameter(f"Observations file not found: {obs_path}", param_hint="--obs")
+
+    sampling_path = Path(sampling).expanduser().resolve() if sampling is not None else None
+    if sampling_path is not None and not sampling_path.exists():
+        raise typer.BadParameter(f"Sampling file not found: {sampling_path}", param_hint="--sampling")
+
+    try:
+        adapter = resolve_adapter(dataset)
+    except KeyError as exc:
+        raise typer.BadParameter(str(exc), param_hint="--dataset") from exc
+
+    canonical_dataset = adapter.name
+    if canonical_dataset == "ebird-ebd" and sampling_path is None:
+        raise typer.BadParameter(
+            "The eBird adapter requires --sampling for end-to-end pipeline runs.",
+            param_hint="--sampling",
+        )
+
+    out_path = Path(out).expanduser().resolve()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    created_temp_work_dir: Path | None = None
+    db_path: Path
+    if db is not None:
+        db_path = Path(db).expanduser().resolve()
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        if work_dir is not None:
+            working_root = Path(work_dir).expanduser().resolve()
+            working_root.mkdir(parents=True, exist_ok=True)
+        else:
+            working_root = Path(tempfile.mkdtemp(prefix="surface-mapper-run-"))
+            created_temp_work_dir = working_root
+        db_path = working_root / "surfaces.duckdb"
+
+    try:
+        ingest(
+            dataset=canonical_dataset,
+            obs=str(obs_path),
+            sampling=str(sampling_path) if sampling_path is not None else None,
+            out=str(db_path),
+            batch_size=batch_size,
+            progress=progress,
+            progress_every=progress_every,
+            python_parser=python_parser,
+        )
+
+        surface(
+            db=str(db_path),
+            dataset=canonical_dataset,
+            metric=metric,
+            res=res,
+            seasonal=False,
+            min_checklists=None,
+            out_table="surface_cells",
+            force_event_cells=False,
+        )
+
+        if output_type == PipelineOutputType.FLAT:
+            render_flat(
+                config=None,
+                preset=preset,
+                preset_file=None,
+                db=str(db_path),
+                table="surface_cells",
+                dataset=canonical_dataset,
+                metric=metric,
+                res=res,
+                time_slice=None,
+                min_support=None,
+                style=None,
+                scale=None,
+                gamma=None,
+                rotate_deg=None,
+                projection=None,
+                layout=None,
+                region_file=None,
+                neighbors_file=None,
+                water_file=None,
+                region_key=None,
+                region_value=None,
+                neighbors=None,
+                mask_water=None,
+                title=None,
+                subtitle=None,
+                width_px=None,
+                height_px=None,
+                dpi=None,
+                out=str(out_path),
+            )
+
+        typer.echo(
+            f"OK pipeline complete (dataset={canonical_dataset}, metric={metric}, res={res}, out={out_path})"
+        )
+    finally:
+        if db is None and not keep_artifacts:
+            db_path.unlink(missing_ok=True)
+            if created_temp_work_dir is not None:
+                shutil.rmtree(created_temp_work_dir, ignore_errors=True)
+
+
 @render_app.command("flat")
 def render_flat(
     config: str | None = typer.Option(None, "--config", help="Path to JSON config file."),
@@ -443,6 +649,9 @@ def render_flat(
     ),
     title: str | None = typer.Option(None, "--title", help="Optional figure title."),
     subtitle: str | None = typer.Option(None, "--subtitle", help="Optional figure subtitle."),
+    width_px: int | None = typer.Option(None, "--width-px", min=1, help="Output width in pixels."),
+    height_px: int | None = typer.Option(None, "--height-px", min=1, help="Output height in pixels."),
+    dpi: int | None = typer.Option(None, "--dpi", min=1, help="Output DPI."),
     out: str | None = typer.Option(None, "--out", help="Output image path."),
 ) -> None:
     """Render flat surface output PNG."""
@@ -539,6 +748,9 @@ def render_flat(
     mask_water_value = resolve_option("mask_water", mask_water, False)
     title_value = resolve_option("title", title, None)
     subtitle_value = resolve_option("subtitle", subtitle, None)
+    width_px_value = resolve_option("width_px", width_px, 2200)
+    height_px_value = resolve_option("height_px", height_px, 1400)
+    dpi_value = resolve_option("dpi", dpi, 200)
     out_value = resolve_option("out", out, None)
 
     explicit_inputs = {
@@ -567,6 +779,9 @@ def render_flat(
         "mask_water": mask_water,
         "title": title,
         "subtitle": subtitle,
+        "width_px": width_px,
+        "height_px": height_px,
+        "dpi": dpi,
         "out": out,
     }
     explicit_inputs = {k: v for k, v in explicit_inputs.items() if v is not None}
@@ -645,6 +860,9 @@ def render_flat(
         title_pad=float(title_pad_value),
         subtitle_enabled=bool(subtitle_enabled_value),
         subtitle_fontsize=int(subtitle_fontsize_value),
+        width_px=int(width_px_value),
+        height_px=int(height_px_value),
+        dpi=int(dpi_value),
         preset_name=preset_model.name,
         region_file=region_file_value,
         neighbors_file=neighbors_file_value,
@@ -722,9 +940,14 @@ def render_3d(
     ),
     z_exaggeration: float | None = typer.Option(None, "--z-exaggeration", help="Height exaggeration multiplier."),
     height_scale: float = typer.Option(1.0, "--height-scale", help="Height multiplier applied to scaled values."),
+    normalize_xy: bool | None = typer.Option(
+        None,
+        "--normalize-xy/--no-normalize-xy",
+        help="Normalize XY extents to a fixed scene size for consistent 3D import scale.",
+    ),
     base_z: float = typer.Option(0.0, "--base-z", help="Base Z offset."),
     export: str = typer.Option("glb", "--export", help="3D export format.", autocompletion=export3d_completion),
-    out: str = typer.Option("out.glb", "--out", help="Output mesh path."),
+    out: str = typer.Option("outputs/out.glb", "--out", help="Output mesh path."),
     preview: str | None = typer.Option(None, "--preview", help="Optional preview PNG screenshot path."),
     region_file: str | None = typer.Option(
         None,
@@ -777,9 +1000,11 @@ def render_3d(
 
     center_value = bool(center if center is not None else cfg_3d.get("center", True))
     scale_units_value = str(scale_units if scale_units is not None else cfg_3d.get("scale_units", "m")).lower()
+    height_scale_value = float(height_scale)
     z_exaggeration_value = float(
         z_exaggeration if z_exaggeration is not None else cfg_3d.get("z_exaggeration", 1.0)
     )
+    normalize_xy_value = bool(normalize_xy if normalize_xy is not None else cfg_3d.get("normalize_xy", True))
     center_origin_value = str(center_origin if center_origin is not None else cfg_3d.get("center_origin", "region")).lower()
     if scale_units_value not in {"m", "km"}:
         raise typer.BadParameter("Unsupported scale units. Use one of: m, km.", param_hint="--scale-units")
@@ -805,7 +1030,7 @@ def render_3d(
         gamma=float(gamma),
         style=cast(RenderStyle, preset_model.style),
         colormap=preset_model.colormap,
-        height_scale=float(height_scale),
+        height_scale=height_scale_value,
         base_z=float(base_z),
         scale_factor=1.0,
         z_exaggeration=z_exaggeration_value,
@@ -897,6 +1122,19 @@ def render_3d(
         )
 
         mesh = build_surface_mesh(gdf, spec)
+        mesh, xy_normalization_scale = normalize_mesh_xy(
+            mesh,
+            target_size=TARGET_XY_SIZE,
+            enabled=normalize_xy_value,
+        )
+        if region_bounds is not None and abs(xy_normalization_scale - 1.0) > 1e-12:
+            min_x, min_y, max_x, max_y = region_bounds
+            region_bounds = (
+                float(min_x) * xy_normalization_scale,
+                float(min_y) * xy_normalization_scale,
+                float(max_x) * xy_normalization_scale,
+                float(max_y) * xy_normalization_scale,
+            )
 
         neighbors_mesh = None
         if preview and neighbors_gdf is not None and not neighbors_gdf.empty:
@@ -905,6 +1143,7 @@ def render_3d(
                 z=spec.base_z - (0.5 * spec.scale_factor),
                 color_name="neighbors",
             )
+            neighbors_mesh = scale_mesh_xy(neighbors_mesh, xy_normalization_scale)
 
         water_mesh = None
         if preview and water_gdf is not None and not water_gdf.empty:
@@ -913,6 +1152,7 @@ def render_3d(
                 z=spec.base_z - (0.25 * spec.scale_factor),
                 color_name="water",
             )
+            water_mesh = scale_mesh_xy(water_mesh, xy_normalization_scale)
 
         cmap = get_cmap(spec.style, query.metric, preset_model.colormap, preset_model.diverging_colormap).name
         out_path = export_mesh(mesh, out_path=str(out), export_format=export_value)
@@ -922,6 +1162,14 @@ def render_3d(
         write_export_metadata(
             out_path=out_path,
             metadata={
+                "surface_mapper_version": __version__,
+                "renderer": "3d",
+                "mode": mode,
+                "export_format": export_value,
+                "preset": preset_model.name,
+                "style": spec.style,
+                "scale": spec.scale,
+                "gamma": spec.gamma,
                 "projection": crs_value,
                 "crs": crs_value,
                 "origin": {"x": transform.origin_x, "y": transform.origin_y},
@@ -929,12 +1177,16 @@ def render_3d(
                 "center_origin": center_origin_value,
                 "scale_units": scale_units_value,
                 "scale_factor": transform.scale_factor,
+                "normalize_xy": normalize_xy_value,
+                "target_xy_size": TARGET_XY_SIZE,
+                "xy_normalization_scale": xy_normalization_scale,
                 "z_exaggeration": z_exaggeration_value,
-                "height_scale": float(height_scale),
+                "height_scale": height_scale_value,
                 "dataset": query.dataset,
                 "metric": query.metric,
                 "res": query.resolution,
                 "time_slice": query.time_slice,
+                "data_attribution": dataset_attribution(query.dataset),
             },
         )
         preview_path = None
@@ -976,6 +1228,79 @@ def render_3d(
             mode,
         )
         raise typer.Exit(code=1)
+
+
+@app.command("render3d")
+@render_app.command("blender")
+def render3d_blender(
+    glb: str = typer.Option(..., "--glb", help="Path to input GLB generated by surface-mapper."),
+    out: str = typer.Option(..., "--out", help="Output PNG path."),
+    preset: str = typer.Option(
+        "default",
+        "--preset",
+        help="Template preset name.",
+        autocompletion=blender_preset_completion,
+    ),
+    template: str | None = typer.Option(
+        None,
+        "--template",
+        help="Path to .blend template. Overrides --preset when provided.",
+    ),
+    blender: str | None = typer.Option(None, "--blender", help="Path to Blender binary."),
+    engine: BlenderEngine = typer.Option(BlenderEngine.CYCLES, "--engine", help="Render engine."),
+    samples: int = typer.Option(512, "--samples", min=1, help="Render samples."),
+    resolution: int = typer.Option(2048, "--resolution", min=1, help="Square output resolution in pixels."),
+    collection: str = typer.Option("MAP_GEOMETRY", "--collection", help="Target Blender collection name."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Print Blender command and exit."),
+    verbose: bool = typer.Option(False, "--verbose", help="Print Blender stdout/stderr directly."),
+) -> None:
+    """Render a GLB through a Blender template in headless mode."""
+    glb_path = Path(glb).expanduser().resolve()
+    if not glb_path.exists():
+        typer.echo(f"Input GLB not found: {glb_path}", err=True)
+        raise typer.Exit(code=1)
+
+    out_path = Path(out).expanduser().resolve()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        repo_root = find_repo_root(Path(__file__).resolve())
+        template_path = resolve_template_path(repo_root=repo_root, preset=preset, template=template)
+        script_path = resolve_script_path(repo_root=repo_root)
+        blender_bin = resolve_blender_binary(blender)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    cmd = build_blender_command(
+        blender_bin=blender_bin,
+        template_path=template_path,
+        script_path=script_path,
+        glb_path=glb_path,
+        out_path=out_path,
+        collection=collection,
+        engine=engine.value,
+        samples=samples,
+        resolution=resolution,
+    )
+
+    if dry_run:
+        typer.echo(format_command(cmd))
+        raise typer.Exit(code=0)
+
+    result = run_blender_headless(cmd=cmd, verbose=verbose)
+    if result.returncode != 0:
+        err_text = ""
+        if result.stderr:
+            err_text = result.stderr.strip()
+        elif result.stdout:
+            err_text = result.stdout.strip()
+        else:
+            err_text = f"Blender exited with code {result.returncode}"
+        typer.echo(err_text, err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo(f"OK rendered blender (in={glb_path}, out={out_path}, preset={preset})")
 
 
 @export_app.command("surface")
@@ -1058,7 +1383,7 @@ def geodata_fetch_defaults(
         f"--region-file {installed['boundary_geojson']} "
         f"--neighbors-file {installed['neighbors_geojson']} "
         f"--water-file {installed['lakes_geojson']} "
-        f"--mask-water --out out.png"
+        f"--mask-water --out outputs/attention.png"
     )
 
 
@@ -1082,7 +1407,7 @@ def geodata_show_defaults(
         "  surface-mapper render flat --db data/surfaces.duckdb --metric attention --res 6 "
         "--region-file data/geodata/default/derived/WI_boundary.geojson "
         "--neighbors-file data/geodata/default/derived/WI_neighbors.geojson "
-        "--water-file data/geodata/default/derived/WI_lakes.geojson --mask-water --out out.png"
+        "--water-file data/geodata/default/derived/WI_lakes.geojson --mask-water --out outputs/attention.png"
     )
 
 

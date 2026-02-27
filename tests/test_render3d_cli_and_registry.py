@@ -3,6 +3,7 @@ from pathlib import Path
 import duckdb
 import h3
 import json
+import numpy as np
 from typer.testing import CliRunner
 
 from surface_mapper.cli.app import app
@@ -155,11 +156,39 @@ def test_render_3d_preview_smoke_with_neighbors_and_water(tmp_path: Path, monkey
     )
 
     class _FakeMesh:
-        bounds = (-90.0, -88.0, 42.5, 43.6, -1.0, 3.0)
         point_data = {"value": [1.0]}
         cell_data = {}
 
+        def __init__(self, points=None) -> None:
+            self.points = np.array(
+                points
+                if points is not None
+                else [
+                    [-90.0, 42.5, -1.0],
+                    [-88.0, 42.5, -1.0],
+                    [-88.0, 43.6, 3.0],
+                    [-90.0, 43.6, 3.0],
+                ],
+                dtype=float,
+            )
+
+        @property
+        def bounds(self):
+            return (
+                float(self.points[:, 0].min()),
+                float(self.points[:, 0].max()),
+                float(self.points[:, 1].min()),
+                float(self.points[:, 1].max()),
+                float(self.points[:, 2].min()),
+                float(self.points[:, 2].max()),
+            )
+
+        def copy(self, deep=True):
+            del deep
+            return _FakeMesh(self.points.copy())
+
     def _fake_build_surface_mesh(gdf, spec):
+        assert spec.height_scale == 2.5
         return _FakeMesh()
 
     def _fake_polygon_gdf_to_flat_mesh(gdf, z, color_name):
@@ -216,6 +245,8 @@ def test_render_3d_preview_smoke_with_neighbors_and_water(tmp_path: Path, monkey
             "attention",
             "--res",
             "6",
+            "--height-scale",
+            "2.5",
             "--region-file",
             str(region_path),
             "--region-value",
@@ -234,5 +265,10 @@ def test_render_3d_preview_smoke_with_neighbors_and_water(tmp_path: Path, monkey
 
     assert result.exit_code == 0
     assert out_path.exists()
-    assert Path(f"{out_path}.meta.json").exists()
+    meta_path = Path(f"{out_path}.meta.json")
+    assert meta_path.exists()
+    metadata = json.loads(meta_path.read_text(encoding="utf-8"))
+    assert metadata["normalize_xy"] is True
+    assert metadata["target_xy_size"] == 10.0
+    assert metadata["xy_normalization_scale"] > 0.0
     assert preview_path.exists()

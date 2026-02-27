@@ -1,8 +1,9 @@
 import geopandas as gpd
+import numpy as np
 import pytest
 from shapely.geometry import Polygon
 
-from surface_mapper.render3d.transforms import transform_xy_gdf
+from surface_mapper.render3d.transforms import TARGET_XY_SIZE, normalize_xy_points, transform_xy_gdf
 
 
 def test_transform_xy_center_and_km_scale() -> None:
@@ -24,3 +25,37 @@ def test_transform_xy_center_and_km_scale() -> None:
     assert max_x == pytest.approx(0.1)
     assert min_y == pytest.approx(-0.1)
     assert max_y == pytest.approx(0.1)
+
+
+def test_normalize_xy_points_scales_max_extent_to_target() -> None:
+    points = np.array(
+        [
+            [10.0, -3.0, 0.0],
+            [16.0, 9.0, 1.0],
+            [22.0, 2.0, 2.0],
+        ],
+        dtype=float,
+    )
+    normalized, xy_scale = normalize_xy_points(points, target_size=TARGET_XY_SIZE, enabled=True)
+
+    x_extent = float(np.max(normalized[:, 0]) - np.min(normalized[:, 0]))
+    y_extent = float(np.max(normalized[:, 1]) - np.min(normalized[:, 1]))
+
+    assert max(x_extent, y_extent) == pytest.approx(TARGET_XY_SIZE)
+    assert normalized[:, 2].tolist() == pytest.approx(points[:, 2].tolist())
+    assert xy_scale == pytest.approx(TARGET_XY_SIZE / 12.0)
+
+
+def test_normalize_xy_points_disabled_keeps_extents_unchanged() -> None:
+    points = np.array(
+        [
+            [1.0, 2.0, 0.0],
+            [4.0, 10.0, 1.0],
+            [3.0, 7.0, 2.0],
+        ],
+        dtype=float,
+    )
+    unchanged, xy_scale = normalize_xy_points(points, target_size=TARGET_XY_SIZE, enabled=False)
+
+    assert unchanged.tolist() == pytest.approx(points.tolist())
+    assert xy_scale == pytest.approx(1.0)

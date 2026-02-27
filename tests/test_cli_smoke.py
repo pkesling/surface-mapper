@@ -1,6 +1,8 @@
 from pathlib import Path
+import shutil
 
 import duckdb
+import pytest
 from typer.testing import CliRunner
 
 from surface_mapper.cli.app import app
@@ -20,6 +22,130 @@ def test_help_runs() -> None:
 def test_subcommand_help_runs() -> None:
     result = runner.invoke(app, ["ingest", "--help"])
     assert result.exit_code == 0
+
+
+def test_run_help_runs() -> None:
+    result = runner.invoke(app, ["run", "--help"])
+    assert result.exit_code == 0
+    assert "--obs" in result.output
+    assert "--sampling" in result.output
+    assert "--keep-artifacts" in result.output
+
+
+def test_run_requires_sampling_for_ebird(tmp_path: Path) -> None:
+    obs_path = tmp_path / "obs.tsv"
+    obs_path.write_text("dummy\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "--dataset",
+            "ebird-ebd",
+            "--obs",
+            str(obs_path),
+            "--out",
+            str(tmp_path / "out.png"),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "requires --sampling" in result.output
+
+
+def test_run_orchestrates_and_cleans_temp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    obs_path = tmp_path / "obs.tsv"
+    sampling_path = tmp_path / "sampling.tsv"
+    out_path = tmp_path / "out.png"
+    obs_path.write_text("dummy\n", encoding="utf-8")
+    sampling_path.write_text("dummy\n", encoding="utf-8")
+
+    calls: dict[str, dict] = {}
+
+    def _fake_ingest(*args, **kwargs):
+        del args
+        calls["ingest"] = kwargs
+        Path(kwargs["out"]).write_bytes(b"duckdb-placeholder")
+
+    def _fake_surface(*args, **kwargs):
+        del args
+        calls["surface"] = kwargs
+
+    def _fake_render_flat(*args, **kwargs):
+        del args
+        calls["render_flat"] = kwargs
+        Path(kwargs["out"]).write_bytes(b"fake-png")
+
+    monkeypatch.setattr("surface_mapper.cli.app.ingest", _fake_ingest)
+    monkeypatch.setattr("surface_mapper.cli.app.surface", _fake_surface)
+    monkeypatch.setattr("surface_mapper.cli.app.render_flat", _fake_render_flat)
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "--dataset",
+            "ebird-ebd",
+            "--obs",
+            str(obs_path),
+            "--sampling",
+            str(sampling_path),
+            "--out",
+            str(out_path),
+        ],
+    )
+    assert result.exit_code == 0
+    assert out_path.exists()
+    assert "pipeline complete" in result.output
+    assert calls["ingest"]["dataset"] == "ebird-ebd"
+    assert calls["render_flat"]["dataset"] == "ebird-ebd"
+    assert calls["render_flat"]["style"] is None
+    assert calls["render_flat"]["preset"] == "classic"
+
+    db_path = Path(calls["ingest"]["out"])
+    assert not db_path.exists()
+
+
+def test_render3d_help_runs() -> None:
+    result = runner.invoke(app, ["render3d", "--help"])
+    assert result.exit_code == 0
+    assert "--template" in result.output
+    assert "--blender" in result.output
+    assert "--dry-run" in result.output
+
+
+def test_render_blender_help_runs() -> None:
+    result = runner.invoke(app, ["render", "blender", "--help"])
+    assert result.exit_code == 0
+    assert "--template" in result.output
+    assert "--blender" in result.output
+    assert "--dry-run" in result.output
+
+
+def test_render3d_dry_run_prints_command(tmp_path: Path) -> None:
+    echo_bin = shutil.which("echo")
+    if echo_bin is None:
+        return
+
+    glb_path = tmp_path / "mesh.glb"
+    out_path = tmp_path / "render.png"
+    glb_path.write_bytes(b"fake-glb")
+
+    result = runner.invoke(
+        app,
+        [
+            "render3d",
+            "--glb",
+            str(glb_path),
+            "--out",
+            str(out_path),
+            "--blender",
+            echo_bin,
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0
+    assert " --glb " in result.output
+    assert " --out " in result.output
 
 
 def test_ingest_ebird_ebd_smoke(tmp_path: Path) -> None:

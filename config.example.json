@@ -21,7 +21,17 @@
       "mask_water": false,
       "title": null,
       "subtitle": null,
-      "out": "out.png"
+      "width_px": 2200,
+      "height_px": 1400,
+      "dpi": 200,
+      "out": "outputs/attention.png"
+    },
+    "3d": {
+      "center": true,
+      "center_origin": "region",
+      "scale_units": "m",
+      "normalize_xy": true,
+      "z_exaggeration": 1.0
     }
   }
 }
