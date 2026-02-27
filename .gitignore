@@ -17,6 +17,6 @@ config.json
 data/*.duckdb
 
 # Blender generated outputs
-/blender/outputs/
+/assets/blender/outputs/
 *.blend
 *.blend1

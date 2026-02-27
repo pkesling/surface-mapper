@@ -8,11 +8,12 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from zipfile import ZipFile
 
+from surface_mapper import __version__
 from surface_mapper.geodata.defaults import DEFAULT_DATASETS, DefaultDataset
 from surface_mapper.geodata.derive import derive_boundary, derive_lakes, derive_neighbors
 from surface_mapper.geodata.paths import default_derived_paths
 
-_USER_AGENT = "surface-mapper/0.1 (+https://github.com/pkesling/surface-mapper)"
+_USER_AGENT = f"surface-mapper/{__version__} (+https://github.com/pkesling/surface-mapper)"
 logger = logging.getLogger("surface_mapper.geodata.fetch")
 
 

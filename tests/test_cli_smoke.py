@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import shutil
 
 import duckdb
@@ -12,11 +13,19 @@ from surface_mapper.surface.build import create_surface_table
 runner = CliRunner()
 
 
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def _plain(text: str) -> str:
+    return ANSI_ESCAPE_RE.sub("", text)
+
+
 def test_help_runs() -> None:
     result = runner.invoke(app, ["--help"])
+    output = _plain(result.output)
     assert result.exit_code == 0
-    assert "Usage:" in result.output
-    assert "surface-mapper" in result.output
+    assert "Usage:" in output
+    assert "surface-mapper" in output
 
 
 def test_subcommand_help_runs() -> None:
@@ -26,10 +35,11 @@ def test_subcommand_help_runs() -> None:
 
 def test_run_help_runs() -> None:
     result = runner.invoke(app, ["run", "--help"])
+    output = _plain(result.output)
     assert result.exit_code == 0
-    assert "--obs" in result.output
-    assert "--sampling" in result.output
-    assert "--keep-artifacts" in result.output
+    assert "--obs" in output
+    assert "--sampling" in output
+    assert "--keep-artifacts" in output
 
 
 def test_run_requires_sampling_for_ebird(tmp_path: Path) -> None:
@@ -48,8 +58,9 @@ def test_run_requires_sampling_for_ebird(tmp_path: Path) -> None:
             str(tmp_path / "out.png"),
         ],
     )
+    output = _plain(result.output)
     assert result.exit_code != 0
-    assert "requires --sampling" in result.output
+    assert "requires --sampling" in output
 
 
 def test_run_orchestrates_and_cleans_temp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -107,18 +118,20 @@ def test_run_orchestrates_and_cleans_temp_db(tmp_path: Path, monkeypatch: pytest
 
 def test_render3d_help_runs() -> None:
     result = runner.invoke(app, ["render3d", "--help"])
+    output = _plain(result.output)
     assert result.exit_code == 0
-    assert "--template" in result.output
-    assert "--blender" in result.output
-    assert "--dry-run" in result.output
+    assert "--template" in output
+    assert "--blender" in output
+    assert "--dry-run" in output
 
 
 def test_render_blender_help_runs() -> None:
     result = runner.invoke(app, ["render", "blender", "--help"])
+    output = _plain(result.output)
     assert result.exit_code == 0
-    assert "--template" in result.output
-    assert "--blender" in result.output
-    assert "--dry-run" in result.output
+    assert "--template" in output
+    assert "--blender" in output
+    assert "--dry-run" in output
 
 
 def test_render3d_dry_run_prints_command(tmp_path: Path) -> None:

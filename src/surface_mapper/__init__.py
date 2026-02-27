@@ -1,2 +1,9 @@
+from importlib.metadata import PackageNotFoundError, version
+
 __all__ = ["__version__"]
-__version__ = "0.1.0"
+
+try:
+    __version__ = version("surface-mapper")
+except PackageNotFoundError:
+    # Fallback for source-only execution before installation.
+    __version__ = "0.0.0+local"

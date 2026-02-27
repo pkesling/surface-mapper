@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from surface_mapper import __version__
 from surface_mapper.render3d.io import write_export_metadata
 
 
@@ -37,7 +38,7 @@ def test_write_export_metadata_embeds_metadata_into_glb(tmp_path: Path) -> None:
     out_path = tmp_path / "mesh.glb"
     out_path.write_bytes(_build_min_glb({"asset": {"version": "2.0"}}))
 
-    metadata = {"surface_mapper_version": "0.1.0", "metric": "attention", "resolution": 6}
+    metadata = {"surface_mapper_version": __version__, "metric": "attention", "resolution": 6}
     write_export_metadata(out_path, metadata)
 
     payload = _read_glb_json(out_path)
