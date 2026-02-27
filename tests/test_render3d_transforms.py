@@ -57,5 +57,5 @@ def test_normalize_xy_points_disabled_keeps_extents_unchanged() -> None:
     )
     unchanged, xy_scale = normalize_xy_points(points, target_size=TARGET_XY_SIZE, enabled=False)
 
-    assert unchanged.tolist() == pytest.approx(points.tolist())
+    assert np.allclose(unchanged, points)
     assert xy_scale == pytest.approx(1.0)

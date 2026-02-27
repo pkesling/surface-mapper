@@ -71,6 +71,7 @@ Defaults:
 - resolution: `6`
 - preset: `classic`
 - temporary DuckDB is cleaned up automatically (use `--keep-artifacts` to keep it)
+- for `--dataset ebird-ebd`, `--sampling` is required in `run` mode
 
 ---
 

@@ -1,10 +1,7 @@
 import argparse
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    import bpy as _bpy
+from typing import Any
 
 
 def _require_bpy():
