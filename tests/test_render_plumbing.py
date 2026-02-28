@@ -1,3 +1,5 @@
+"""Tests for test_render_plumbing."""
+
 import json
 from pathlib import Path
 
@@ -15,6 +17,7 @@ runner = CliRunner()
 
 
 def test_load_surface_and_render_flat_cli(tmp_path: Path) -> None:
+    """Test load surface and render flat cli."""
     db_path = tmp_path / "render.duckdb"
     out_path = tmp_path / "out.png"
     region_path = tmp_path / "region.geojson"
@@ -107,6 +110,7 @@ def test_load_surface_and_render_flat_cli(tmp_path: Path) -> None:
 
 
 def test_render_flat_cli_supports_json_config(tmp_path: Path) -> None:
+    """Test render flat cli supports json config."""
     db_path = tmp_path / "render-config.duckdb"
     out_path = tmp_path / "out-config.png"
     config_path = tmp_path / "config.json"
@@ -207,6 +211,7 @@ def test_render_flat_cli_supports_json_config(tmp_path: Path) -> None:
 
 
 def test_render_flat_uses_local_config_json_by_default(tmp_path: Path, monkeypatch) -> None:
+    """Test render flat uses local config json by default."""
     db_path = tmp_path / "render-local-config.duckdb"
     out_path = tmp_path / "out-local-config.png"
     config_path = tmp_path / "config.json"

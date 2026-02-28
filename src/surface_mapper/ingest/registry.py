@@ -1,3 +1,5 @@
+"""surface_mapper.ingest.registry module."""
+
 from __future__ import annotations
 
 import logging
@@ -13,10 +15,12 @@ _ENTRYPOINT_GROUP = "surface_mapper.ingest_adapters"
 
 
 def _iter_builtin_adapters() -> list[IngestAdapter]:
+    """Internal helper for iter builtin adapters."""
     return [EbirdIngestAdapter()]
 
 
 def _iter_plugin_adapters() -> list[IngestAdapter]:
+    """Internal helper for iter plugin adapters."""
     adapters: list[IngestAdapter] = []
     for ep in entry_points(group=_ENTRYPOINT_GROUP):
         try:
@@ -45,6 +49,7 @@ def _iter_plugin_adapters() -> list[IngestAdapter]:
 
 @lru_cache(maxsize=1)
 def get_adapter_index() -> dict[str, IngestAdapter]:
+    """Get adapter index."""
     index: dict[str, IngestAdapter] = {}
 
     def register_key(key: str, adapter: IngestAdapter) -> None:
@@ -62,6 +67,7 @@ def get_adapter_index() -> dict[str, IngestAdapter]:
 
 
 def resolve_adapter(name: str) -> IngestAdapter:
+    """Resolve adapter."""
     index = get_adapter_index()
     try:
         return index[name]
@@ -71,6 +77,7 @@ def resolve_adapter(name: str) -> IngestAdapter:
 
 
 def list_adapters() -> list[str]:
+    """List adapters."""
     return sorted(get_adapter_index())
 
 

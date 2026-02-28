@@ -1,3 +1,5 @@
+"""surface_mapper.render.presets.schema module."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -7,37 +9,44 @@ from pydantic import BaseModel, Field
 
 
 class PresetLegend(BaseModel):
+    """PresetLegend."""
     show: bool = True
     location: Literal["right", "bottom", "none"] = "right"
     label: str | None = None
 
 
 class PresetTitle(BaseModel):
+    """PresetTitle."""
     enabled: bool = True
     fontsize: int = 16
     pad: float = 8.0
 
 
 class PresetSubtitle(BaseModel):
+    """PresetSubtitle."""
     enabled: bool = True
     fontsize: int = 11
 
 
 class PresetLayout(BaseModel):
+    """PresetLayout."""
     mode: Literal["single", "quad"] = "single"
     quad_titles: bool = True
 
 
 class PresetScaleDefaults(BaseModel):
+    """PresetScaleDefaults."""
     scale: Literal["linear", "log", "gamma"] = "gamma"
     gamma: float = 0.6
 
 
 class PresetFraming(BaseModel):
+    """PresetFraming."""
     pad_pct: float = 0.05
 
 
 class RenderPreset(BaseModel):
+    """RenderPreset."""
     name: str
     style: str = "classic"
     colormap: str | None = None
@@ -60,6 +69,7 @@ class RenderPreset(BaseModel):
 
     @classmethod
     def load(cls, name_or_path: str) -> "RenderPreset":
+        """Load."""
         builtin_dir = Path(__file__).resolve().parent / "builtin"
         builtin_path = builtin_dir / f"{name_or_path}.json"
         if builtin_path.exists():

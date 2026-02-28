@@ -1,3 +1,5 @@
+"""surface_mapper.contracts.__init__ module."""
+
 from .normalized import (
     NORMALIZED_EVENTS_TABLE,
     NORMALIZED_OBS_TABLE,

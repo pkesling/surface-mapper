@@ -1,3 +1,5 @@
+"""surface_mapper.render.__init__ module."""
+
 from surface_mapper.render.base import Renderer
 from surface_mapper.render.contracts import RenderArtifacts, RenderSpec, SurfaceQuery
 from surface_mapper.render.flat import FlatRenderer

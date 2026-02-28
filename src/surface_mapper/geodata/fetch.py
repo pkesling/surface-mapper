@@ -1,3 +1,5 @@
+"""surface_mapper.geodata.fetch module."""
+
 from __future__ import annotations
 
 import logging
@@ -17,7 +19,21 @@ _USER_AGENT = f"surface-mapper/{__version__} (+https://github.com/pkesling/surfa
 logger = logging.getLogger("surface_mapper.geodata.fetch")
 
 
+def _safe_extract_zip(zf: ZipFile, dest_dir: Path) -> list[str]:
+    """Internal helper for safe extract zip."""
+    root = dest_dir.resolve()
+    members = zf.namelist()
+    for member in members:
+        member_path = Path(member)
+        target = (dest_dir / member_path).resolve()
+        if not target.is_relative_to(root):
+            raise RuntimeError(f"Unsafe zip member path '{member}' escapes destination directory.")
+    zf.extractall(dest_dir)
+    return members
+
+
 def _default_dest_dir() -> Path:
+    """Internal helper for default dest dir."""
     cwd = Path.cwd().resolve()
     for candidate in [cwd, *cwd.parents]:
         if (candidate / "pyproject.toml").exists() and (candidate / "src" / "surface_mapper").exists():
@@ -26,14 +42,17 @@ def _default_dest_dir() -> Path:
 
 
 def default_geodata_dest() -> Path:
+    """Default geodata dest."""
     return _default_dest_dir()
 
 
 def _required_components_exist(base_path: Path) -> bool:
+    """Internal helper for required components exist."""
     return all(base_path.with_suffix(ext).exists() for ext in (".shp", ".dbf", ".shx", ".prj"))
 
 
 def _download_to_path(url: str, target: Path) -> None:
+    """Internal helper for download to path."""
     logger.debug("Downloading geodata url=%s target=%s", url, target)
     req = Request(url, headers={"User-Agent": _USER_AGENT})
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -59,6 +78,7 @@ def _download_to_path(url: str, target: Path) -> None:
 
 
 def fetch_and_unpack(urls: list[str], dest_dir: Path, force: bool) -> list[Path]:
+    """Fetch and unpack."""
     dest_dir.mkdir(parents=True, exist_ok=True)
     archive_path = dest_dir / "source.zip"
     logger.debug("Preparing fetch dest_dir=%s force=%s archive=%s", dest_dir, force, archive_path)
@@ -87,12 +107,13 @@ def fetch_and_unpack(urls: list[str], dest_dir: Path, force: bool) -> list[Path]
     with ZipFile(archive_path) as zf:
         members = zf.namelist()
         logger.debug("Unpacking archive=%s members=%d", archive_path, len(members))
-        zf.extractall(dest_dir)
+        _safe_extract_zip(zf, dest_dir)
 
     return [dest_dir / member for member in members]
 
 
 def _ensure_dataset(dataset: DefaultDataset, dest_dir: Path, force: bool) -> Path:
+    """Internal helper for ensure dataset."""
     dataset_dir = dest_dir / dataset.name
     dataset_dir.mkdir(parents=True, exist_ok=True)
     shp_path = dataset_dir / f"{dataset.expected_basename}.shp"
@@ -120,6 +141,7 @@ def _ensure_dataset(dataset: DefaultDataset, dest_dir: Path, force: bool) -> Pat
 
 
 def ensure_defaults(dest_dir: Path, force: bool) -> dict[str, Path]:
+    """Ensure defaults."""
     resolved = dest_dir.expanduser().resolve()
     results: dict[str, Path] = {}
 
@@ -139,6 +161,7 @@ def ensure_derived_defaults(
     crs: str,
     force: bool,
 ) -> dict[str, Path]:
+    """Ensure derived defaults."""
     resolved_dest = dest_dir.expanduser().resolve()
     installed = ensure_defaults(resolved_dest, force=force)
     out_paths = default_derived_paths(resolved_dest, state=state, derived_dir=derived_dir.expanduser().resolve() if derived_dir else None)

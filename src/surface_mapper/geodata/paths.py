@@ -1,9 +1,12 @@
+"""surface_mapper.geodata.paths module."""
+
 from __future__ import annotations
 
 from pathlib import Path
 
 
 def default_derived_paths(dest_dir: Path, state: str, derived_dir: Path | None = None) -> dict[str, Path]:
+    """Default derived paths."""
     base = derived_dir if derived_dir is not None else dest_dir / "derived"
     state_up = state.upper()
     return {

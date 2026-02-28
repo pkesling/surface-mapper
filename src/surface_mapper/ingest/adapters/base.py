@@ -1,3 +1,5 @@
+"""surface_mapper.ingest.adapters.base module."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -8,6 +10,8 @@ from surface_mapper.ingest.types import IngestRequest, IngestStats
 
 
 class IngestAdapter(ABC):
+    """IngestAdapter."""
+
     @property
     @abstractmethod
     def name(self) -> str:
@@ -15,6 +19,7 @@ class IngestAdapter(ABC):
 
     @property
     def aliases(self) -> tuple[str, ...]:
+        """Aliases."""
         return ()
 
     @abstractmethod

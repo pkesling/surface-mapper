@@ -1,3 +1,5 @@
+"""Tests for test_render_png_smoke."""
+
 from pathlib import Path
 import json
 
@@ -12,6 +14,7 @@ runner = CliRunner()
 
 
 def test_render_flat_png_smoke(tmp_path: Path) -> None:
+    """Test render flat png smoke."""
     db_path = tmp_path / "render-png.duckdb"
     out_path = tmp_path / "render.png"
     region_path = tmp_path / "region.geojson"

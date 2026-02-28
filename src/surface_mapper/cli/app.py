@@ -1,3 +1,5 @@
+"""surface_mapper.cli.app module."""
+
 from __future__ import annotations
 
 import json
@@ -50,6 +52,7 @@ from surface_mapper.store.duckdb_store import (
     DuckDBStore,
     count_rows,
     create_normalized_tables,
+    quote_sql_identifier,
 )
 from surface_mapper.surface.build import (
     build_event_cells,
@@ -83,91 +86,113 @@ SURFACE_METRIC_ALIASES: dict[str, str] = {
 
 
 def metric_completion() -> list[str]:
+    """Metric completion."""
     return ["attention", "richness_unique", "richness_mean"]
 
 
 def dataset_completion() -> list[str]:
+    """Dataset completion."""
     return ["ebird-ebd"]
 
 
 def projection_completion() -> list[str]:
+    """Projection completion."""
     return ["auto", "5070", "3857", "none"]
 
 
 def layout_completion() -> list[str]:
+    """Layout completion."""
     return ["single", "quad"]
 
 
 def preset_completion() -> list[str]:
+    """Preset completion."""
     return ["classic", "neon"]
 
 
 def style_completion() -> list[str]:
+    """Style completion."""
     return ["classic", "neon"]
 
 
 def blender_preset_completion() -> list[str]:
+    """Blender preset completion."""
     return ["default", "classic", "neon"]
 
 
 class BlenderEngine(str, Enum):
+    """BlenderEngine."""
     CYCLES = "CYCLES"
     EEVEE = "EEVEE"
 
 
 class PipelineOutputType(str, Enum):
+    """PipelineOutputType."""
     FLAT = "flat"
 
 
 def scale_completion() -> list[str]:
+    """Scale completion."""
     return ["linear", "log", "gamma"]
 
 
 def render3d_mode_completion() -> list[str]:
+    """Render3d mode completion."""
     return sorted(get_builder_registry())
 
 
 def export3d_completion() -> list[str]:
+    """Export3d completion."""
     return ["glb", "obj", "stl"]
 
 
 def scale_units_completion() -> list[str]:
+    """Scale units completion."""
     return ["m", "km"]
 
 
 def center_origin_completion() -> list[str]:
+    """Center origin completion."""
     return ["region", "data"]
 
 
 def time_slice_completion() -> list[str]:
+    """Time slice completion."""
     return ["winter", "spring", "summer", "fall"]
 
 
 def log_level_completion() -> list[str]:
+    """Log level completion."""
     return ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
 def surface_metric_completion() -> list[str]:
+    """Surface metric completion."""
     return sorted(SURFACE_METRIC_ALIASES.keys())
 
 
 def surface_resolution_completion() -> list[str]:
+    """Surface resolution completion."""
     return [str(v) for v in (3, 4, 5, 6, 7, 8, 9, 10)]
 
 
 def surface_table_completion() -> list[str]:
+    """Surface table completion."""
     return ["surface_cells", "surface_cells_seasonal"]
 
 
 def _resolve_surface_metric(metric: str) -> str | None:
+    """Internal helper for resolve surface metric."""
     return SURFACE_METRIC_ALIASES.get(metric.strip().lower())
 
 
 def _parse_log_level(value: str) -> int | None:
+    """Internal helper for parse log level."""
     return getattr(logging, value.upper(), None)
 
 
 def _configure_logging(log_level: str | None = None) -> None:
+    """Internal helper for configure logging."""
     level_name = log_level or os.getenv("SURFACE_MAPPER_LOG_LEVEL", "INFO")
     level = _parse_log_level(level_name)
     if level is None:
@@ -184,6 +209,7 @@ def _configure_logging(log_level: str | None = None) -> None:
 
 
 def version_callback(value: bool) -> None:
+    """Version callback."""
     if value:
         _configure_logging()
         logger.info("surface-mapper %s", __version__)
@@ -371,6 +397,7 @@ def surface(
     store = DuckDBStore(Path(db))
     conn = store.connect()
     try:
+        out_table_sql = quote_sql_identifier(out_table)
         create_normalized_tables(conn)
         create_surface_table(conn, out_table)
         create_event_cells_table(conn)
@@ -395,7 +422,7 @@ def surface(
                 conn.execute(
                     f"""
                     SELECT COUNT(DISTINCT cell_id)
-                    FROM {out_table}
+                    FROM {out_table_sql}
                     WHERE dataset = ? AND resolution = ? AND metric = ? AND time_slice IS NOT NULL;
                     """,
                     [dataset, res, metric],
@@ -417,7 +444,7 @@ def surface(
                 conn.execute(
                     f"""
                     SELECT COUNT(DISTINCT cell_id)
-                    FROM {out_table}
+                    FROM {out_table_sql}
                     WHERE dataset = ? AND resolution = ? AND metric = ? AND time_slice IS NULL;
                     """,
                     [dataset, res, metric],
@@ -1315,12 +1342,13 @@ def export_surface(
 
     conn = DuckDBStore(Path(db)).connect()
     try:
+        surface_table_sql = quote_sql_identifier(surface_table)
         logger.info("Starting surface export db=%s table=%s out=%s", db, surface_table, out)
         conn.execute(
-            f"COPY (SELECT * FROM {surface_table}) TO ? (FORMAT PARQUET);",
+            f"COPY (SELECT * FROM {surface_table_sql}) TO ? (FORMAT PARQUET);",
             [str(out_path)],
         )
-        rows = int(conn.execute(f"SELECT COUNT(*) FROM {surface_table};").fetchone()[0])
+        rows = int(conn.execute(f"SELECT COUNT(*) FROM {surface_table_sql};").fetchone()[0])
         logger.info("surface export complete rows=%d table=%s out=%s", rows, surface_table, out)
     except Exception:
         logger.exception("Surface export failed db=%s table=%s out=%s", db, surface_table, out)
@@ -1417,6 +1445,7 @@ app.add_typer(geodata_app, name="geodata")
 
 
 def main() -> None:
+    """Main."""
     app()
 
 

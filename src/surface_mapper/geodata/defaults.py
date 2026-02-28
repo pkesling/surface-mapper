@@ -1,3 +1,5 @@
+"""surface_mapper.geodata.defaults module."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -5,6 +7,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class DefaultDataset:
+    """DefaultDataset."""
     name: str
     urls: tuple[str, ...]
     expected_basename: str

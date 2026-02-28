@@ -1,3 +1,5 @@
+"""surface_mapper.render.blender_runner module."""
+
 from __future__ import annotations
 
 import shlex
@@ -19,6 +21,7 @@ PRESET_TEMPLATES = {
 
 
 def find_repo_root(start: Path | None = None) -> Path:
+    """Find repo root."""
     origin = start or Path(__file__).resolve()
     for candidate in (origin, *origin.parents):
         if (candidate / "pyproject.toml").exists():
@@ -27,6 +30,7 @@ def find_repo_root(start: Path | None = None) -> Path:
 
 
 def resolve_blender_binary(blender: str | None) -> Path:
+    """Resolve blender binary."""
     if blender:
         candidate = Path(blender).expanduser().resolve()
         if candidate.exists():
@@ -47,6 +51,7 @@ def resolve_blender_binary(blender: str | None) -> Path:
 
 
 def resolve_script_path(repo_root: Path) -> Path:
+    """Resolve script path."""
     for rel in DEFAULT_SCRIPT_CANDIDATES:
         candidate = (repo_root / rel).resolve()
         if candidate.exists():
@@ -56,6 +61,7 @@ def resolve_script_path(repo_root: Path) -> Path:
 
 
 def available_presets(repo_root: Path) -> dict[str, Path]:
+    """Available presets."""
     return {
         name: (repo_root / rel).resolve()
         for name, rel in PRESET_TEMPLATES.items()
@@ -64,6 +70,7 @@ def available_presets(repo_root: Path) -> dict[str, Path]:
 
 
 def resolve_template_path(repo_root: Path, preset: str, template: str | None) -> Path:
+    """Resolve template path."""
     if template:
         template_path = Path(template).expanduser().resolve()
         if template_path.exists():
@@ -89,6 +96,7 @@ def build_blender_command(
     samples: int,
     resolution: int,
 ) -> list[str]:
+    """Build blender command."""
     return [
         str(blender_bin),
         "-b",
@@ -112,10 +120,12 @@ def build_blender_command(
 
 
 def format_command(cmd: list[str]) -> str:
+    """Format command."""
     return " ".join(shlex.quote(part) for part in cmd)
 
 
 def run_blender_headless(cmd: list[str], verbose: bool) -> subprocess.CompletedProcess[str]:
+    """Run blender headless."""
     return subprocess.run(
         cmd,
         check=False,

@@ -1,9 +1,12 @@
+"""surface_mapper.surface.time_slices module."""
+
 from __future__ import annotations
 
 from datetime import date
 
 
 def season_label(observed_at: date) -> str:
+    """Season label."""
     month = observed_at.month
     if month in (12, 1, 2):
         return "winter"

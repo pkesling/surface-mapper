@@ -1,3 +1,5 @@
+"""surface_mapper.ingest.adapters.ebird module."""
+
 from __future__ import annotations
 
 import csv
@@ -43,15 +45,20 @@ _SAMPLING_REQUIRED_COLUMNS = {
 
 
 class EbirdIngestAdapter(IngestAdapter):
+    """EbirdIngestAdapter."""
+
     @property
     def name(self) -> str:
+        """Name."""
         return "ebird-ebd"
 
     @property
     def aliases(self) -> tuple[str, ...]:
+        """Aliases."""
         return ("ebd", "ebird")
 
     def ingest(self, conn: duckdb.DuckDBPyConnection, request: IngestRequest) -> IngestStats:
+        """Ingest."""
         dataset_key = self.name
         if request.python_parser:
             return self._ingest_with_python_parser(conn, dataset_key, request)
@@ -63,6 +70,7 @@ class EbirdIngestAdapter(IngestAdapter):
         dataset_key: str,
         request: IngestRequest,
     ) -> IngestStats:
+        """Internal helper for ingest with duckdb parser."""
         logger.info("Using DuckDB-native CSV parser")
         obs_columns = _read_csv_columns(conn, request.obs_path)
         _check_required_columns(request.obs_path, obs_columns, _OBS_REQUIRED_COLUMNS)
@@ -187,6 +195,7 @@ class EbirdIngestAdapter(IngestAdapter):
         dataset_key: str,
         request: IngestRequest,
     ) -> IngestStats:
+        """Internal helper for ingest with python parser."""
         logger.warning("Using Python CSV parser fallback; this is slower than DuckDB-native ingestion")
         rows_read_obs = 0
         rows_read_events = 0
@@ -322,6 +331,7 @@ class EbirdIngestAdapter(IngestAdapter):
 
 
 def _parse_date(value: str) -> date | None:
+    """Internal helper for parse date."""
     value = (value or "").strip()
     if not value:
         return None
@@ -332,6 +342,7 @@ def _parse_date(value: str) -> date | None:
 
 
 def _parse_float(value: str) -> float | None:
+    """Internal helper for parse float."""
     value = (value or "").strip()
     if not value:
         return None
@@ -342,6 +353,7 @@ def _parse_float(value: str) -> float | None:
 
 
 def _parse_int(value: str) -> int | None:
+    """Internal helper for parse int."""
     value = (value or "").strip()
     if not value:
         return None
@@ -352,6 +364,7 @@ def _parse_int(value: str) -> int | None:
 
 
 def _parse_bool_10(value: str) -> bool | None:
+    """Internal helper for parse bool 10."""
     value = (value or "").strip()
     if value == "1":
         return True
@@ -361,6 +374,7 @@ def _parse_bool_10(value: str) -> bool | None:
 
 
 def _check_required_columns(path: Path, found: set[str], required: set[str]) -> None:
+    """Internal helper for check required columns."""
     missing = sorted(required - found)
     if missing:
         logger.error("Missing required columns in %s: %s", path, ", ".join(missing))
@@ -377,6 +391,7 @@ def _emit_progress(
     batches: int,
     start_time: float,
 ) -> None:
+    """Internal helper for emit progress."""
     elapsed = max(time.time() - start_time, 1e-9)
     rate = read_rows / elapsed
     logger.info(
@@ -391,6 +406,7 @@ def _emit_progress(
 
 
 def _read_csv_columns(conn: duckdb.DuckDBPyConnection, path: Path) -> set[str]:
+    """Internal helper for read csv columns."""
     logger.info("Inspecting TSV columns: %s", path)
     rows = conn.execute(
         """
@@ -403,6 +419,7 @@ def _read_csv_columns(conn: duckdb.DuckDBPyConnection, path: Path) -> set[str]:
 
 
 def _count_source_rows(conn: duckdb.DuckDBPyConnection, path: Path) -> int:
+    """Internal helper for count source rows."""
     return int(
         conn.execute(
             """

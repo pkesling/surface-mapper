@@ -1,3 +1,5 @@
+"""surface_mapper.attribution module."""
+
 from __future__ import annotations
 
 E_BIRD_BASIC_DATASET_CITATION = (
@@ -6,6 +8,7 @@ E_BIRD_BASIC_DATASET_CITATION = (
 
 
 def dataset_attribution(dataset: str | None) -> str | None:
+    """Dataset attribution."""
     if dataset is None:
         return None
     normalized = dataset.strip().lower()

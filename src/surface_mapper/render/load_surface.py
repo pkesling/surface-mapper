@@ -1,14 +1,19 @@
+"""surface_mapper.render.load_surface module."""
+
 from __future__ import annotations
 
 import duckdb
 import pandas as pd
 
 from surface_mapper.render.contracts import SurfaceQuery
+from surface_mapper.store.duckdb_store import quote_sql_identifier
 
 
 def load_surface(query: SurfaceQuery) -> pd.DataFrame:
+    """Load surface."""
     conn = duckdb.connect(query.db_path, read_only=True)
     try:
+        table = quote_sql_identifier(query.table)
         params: list[object] = [query.dataset, query.grid, query.resolution, query.metric]
         where_parts = [
             "dataset = ?",
@@ -29,7 +34,7 @@ def load_surface(query: SurfaceQuery) -> pd.DataFrame:
 
         sql = (
             f"SELECT cell_id, value, support, time_slice "
-            f"FROM {query.table} "
+            f"FROM {table} "
             f"WHERE {' AND '.join(where_parts)}"
         )
         return conn.execute(sql, params).df()

@@ -1,3 +1,5 @@
+"""surface_mapper.render3d.io module."""
+
 from __future__ import annotations
 
 import json
@@ -8,6 +10,7 @@ _GLB_JSON_CHUNK_TYPE = b"JSON"
 
 
 def _require_pyvista():
+    """Internal helper for require pyvista."""
     try:
         import pyvista as pv
     except ImportError as exc:
@@ -18,6 +21,7 @@ def _require_pyvista():
 
 
 def _save_with_gltf_writer(mesh, out_path: Path) -> None:
+    """Internal helper for save with gltf writer."""
     pv = _require_pyvista()
     plotter = pv.Plotter(off_screen=True)
     try:
@@ -29,6 +33,7 @@ def _save_with_gltf_writer(mesh, out_path: Path) -> None:
 
 
 def export_mesh(mesh, out_path: str, export_format: str) -> Path:
+    """Export mesh."""
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
 
@@ -51,6 +56,7 @@ def export_mesh(mesh, out_path: str, export_format: str) -> Path:
 
 
 def _embed_glb_metadata(out_path: Path, metadata: dict[str, object]) -> None:
+    """Internal helper for embed glb metadata."""
     blob = out_path.read_bytes()
     if len(blob) < 20 or blob[:4] != _GLB_MAGIC:
         return
@@ -108,6 +114,7 @@ def _embed_glb_metadata(out_path: Path, metadata: dict[str, object]) -> None:
 
 
 def write_export_metadata(out_path: Path, metadata: dict[str, object]) -> Path:
+    """Write export metadata."""
     meta_path = Path(f"{out_path}.meta.json")
     meta_path.parent.mkdir(parents=True, exist_ok=True)
     meta_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")

@@ -1,3 +1,5 @@
+"""surface_mapper.render3d.preview module."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -5,6 +7,7 @@ from typing import Any
 
 
 def _require_pyvista():
+    """Internal helper for require pyvista."""
     try:
         import pyvista as pv
     except ImportError as exc:
@@ -15,6 +18,7 @@ def _require_pyvista():
 
 
 def _set_north_up_camera(plotter, bounds: tuple[float, float, float, float, float, float], base_z: float) -> None:
+    """Internal helper for set north up camera."""
     min_x, max_x, min_y, max_y, _min_z, max_z = bounds
     cx = 0.5 * (min_x + max_x)
     cy = 0.5 * (min_y + max_y)
@@ -32,6 +36,7 @@ def _set_north_up_camera(plotter, bounds: tuple[float, float, float, float, floa
 
 
 def _combine_bounds(*meshes):
+    """Internal helper for combine bounds."""
     mins = [float("inf"), float("inf"), float("inf")]
     maxs = [float("-inf"), float("-inf"), float("-inf")]
     found = False
@@ -67,6 +72,7 @@ def render_preview(
     region_bounds: tuple[float, float, float, float] | None = None,
     camera_preset: str | None = None,
 ) -> Path:
+    """Render preview."""
     pv = _require_pyvista()
     out = Path(preview_path)
     out.parent.mkdir(parents=True, exist_ok=True)

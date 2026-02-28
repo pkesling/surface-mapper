@@ -1,3 +1,5 @@
+"""surface_mapper.render.flat module."""
+
 from __future__ import annotations
 
 import json
@@ -33,11 +35,13 @@ _SEASONS = ["winter", "spring", "summer", "fall"]
 
 
 def stats_sidecar_path(out_path: str) -> Path:
+    """Stats sidecar path."""
     output = Path(out_path)
     return output.with_name(f"{output.stem}.stats.json")
 
 
 def _resolve_projection(projection: str) -> str | None:
+    """Internal helper for resolve projection."""
     if projection == "auto":
         return "EPSG:5070"
     if projection == "epsg:5070":
@@ -50,6 +54,7 @@ def _resolve_projection(projection: str) -> str | None:
 
 
 def _load_query_df(query: SurfaceQuery, time_slice: str | None) -> pd.DataFrame:
+    """Internal helper for load query df."""
     q = SurfaceQuery(
         db_path=query.db_path,
         table=query.table,
@@ -64,6 +69,7 @@ def _load_query_df(query: SurfaceQuery, time_slice: str | None) -> pd.DataFrame:
 
 
 def _make_boundary(spec: RenderSpec, gdf: pd.DataFrame, projection: str | None):
+    """Internal helper for make boundary."""
     if spec.region_file is not None:
         region_layer = load_layer(spec.region_file)
         boundary_gdf = select_polygon(region_layer, spec.region_key, spec.region_value)
@@ -75,6 +81,7 @@ def _make_boundary(spec: RenderSpec, gdf: pd.DataFrame, projection: str | None):
 
 
 def _make_neighbors(spec: RenderSpec, boundary_gdf, projection: str | None):
+    """Internal helper for make neighbors."""
     if not spec.neighbors:
         return None
     if spec.neighbors_file is not None:
@@ -84,6 +91,7 @@ def _make_neighbors(spec: RenderSpec, boundary_gdf, projection: str | None):
 
 
 def _make_water(spec: RenderSpec, projection: str | None):
+    """Internal helper for make water."""
     if not spec.mask_water:
         return None
     if spec.water_file is None:
@@ -92,6 +100,7 @@ def _make_water(spec: RenderSpec, projection: str | None):
 
 
 def _clip_and_mask(gdf, boundary_gdf, water_gdf):
+    """Internal helper for clip and mask."""
     clipped = gdf.clip(boundary_gdf)
     if water_gdf is not None and not water_gdf.empty:
         water_mask = water_gdf.clip(boundary_gdf)
@@ -111,6 +120,7 @@ def _clip_and_mask(gdf, boundary_gdf, water_gdf):
 
 
 def _clip_to_axes(gdf, ax):
+    """Internal helper for clip to axes."""
     if gdf is None or gdf.empty:
         return gdf
     x0, x1 = ax.get_xlim()
@@ -120,12 +130,14 @@ def _clip_to_axes(gdf, ax):
 
 
 def _rotation_origin(boundary_gdf):
+    """Internal helper for rotation origin."""
     if hasattr(boundary_gdf.geometry, "union_all"):
         return boundary_gdf.geometry.union_all().centroid
     return boundary_gdf.unary_union.centroid
 
 
 def _rotate_gdf(gdf, rotate_deg: float, origin):
+    """Internal helper for rotate gdf."""
     if gdf is None or gdf.empty or rotate_deg == 0.0:
         return gdf
     gdf = gdf.copy()
@@ -134,6 +146,7 @@ def _rotate_gdf(gdf, rotate_deg: float, origin):
 
 
 def _set_framing(ax, boundary_gdf, pad_pct: float) -> None:
+    """Internal helper for set framing."""
     minx, miny, maxx, maxy = boundary_gdf.total_bounds
     dx = max(maxx - minx, 1e-9)
     dy = max(maxy - miny, 1e-9)
@@ -144,6 +157,7 @@ def _set_framing(ax, boundary_gdf, pad_pct: float) -> None:
 
 
 def _draw_common_layers(ax, spec: RenderSpec, boundary_gdf, neighbors_gdf, water_gdf) -> None:
+    """Internal helper for draw common layers."""
     if water_gdf is not None and not water_gdf.empty:
         ax.set_facecolor(spec.water_fill)
     else:
@@ -157,6 +171,7 @@ def _draw_common_layers(ax, spec: RenderSpec, boundary_gdf, neighbors_gdf, water
 
 
 def _draw_outline(ax, spec: RenderSpec, boundary_gdf) -> None:
+    """Internal helper for draw outline."""
     boundary_gdf.boundary.plot(
         ax=ax,
         color=spec.outline_color,
@@ -167,6 +182,7 @@ def _draw_outline(ax, spec: RenderSpec, boundary_gdf) -> None:
 
 
 def _build_png_metadata(query: SurfaceQuery, spec: RenderSpec, rowcount: int) -> dict[str, str]:
+    """Internal helper for build png metadata."""
     attribution = dataset_attribution(query.dataset)
     payload = {
         "surface_mapper_version": __version__,
@@ -210,7 +226,9 @@ def _build_png_metadata(query: SurfaceQuery, spec: RenderSpec, rowcount: int) ->
 
 
 class FlatRenderer(Renderer):
+    """FlatRenderer."""
     def render(self, query: SurfaceQuery, spec: RenderSpec) -> RenderArtifacts:
+        """Render."""
         projection = _resolve_projection(spec.projection)
         cmap = get_cmap(spec.style, query.metric, spec.colormap, spec.diverging_colormap)
 
@@ -219,6 +237,7 @@ class FlatRenderer(Renderer):
         return self._render_single(query, spec, projection, cmap)
 
     def _render_single(self, query: SurfaceQuery, spec: RenderSpec, projection: str | None, cmap):
+        """Internal helper for render single."""
         df = _load_query_df(query, query.time_slice)
         if df.empty:
             hint = ""
@@ -302,6 +321,7 @@ class FlatRenderer(Renderer):
         return RenderArtifacts(output_path=spec.out_path)
 
     def _render_quad(self, query: SurfaceQuery, spec: RenderSpec, projection: str | None, cmap):
+        """Internal helper for render quad."""
         season_dfs = {season: _load_query_df(query, season) for season in _SEASONS}
         non_empty = [df for df in season_dfs.values() if not df.empty]
         if not non_empty:
@@ -428,12 +448,14 @@ class FlatRenderer(Renderer):
         return RenderArtifacts(output_path=spec.out_path)
 
     def _decorate_single(self, fig, ax, spec: RenderSpec, query: SurfaceQuery) -> None:
+        """Internal helper for decorate single."""
         if spec.title_enabled and spec.title:
             ax.set_title(spec.title, fontsize=spec.title_fontsize, pad=spec.title_pad)
         if spec.subtitle_enabled and spec.subtitle:
             fig.text(0.5, 0.94, spec.subtitle, ha="center", va="top", fontsize=spec.subtitle_fontsize)
 
     def _add_colorbar(self, fig, ax_or_axes, spec: RenderSpec, cmap, vmin: float, vmax: float, metric: str) -> None:
+        """Internal helper for add colorbar."""
         if not spec.show_legend or spec.legend_location == "none":
             return
         if vmax == vmin:
@@ -451,6 +473,7 @@ class FlatRenderer(Renderer):
         cbar.set_label(label)
 
     def _write_stats(self, out_path: str, df: pd.DataFrame) -> None:
+        """Internal helper for write stats."""
         values = df["value"]
         stats = {
             "rowcount": int(len(df)),

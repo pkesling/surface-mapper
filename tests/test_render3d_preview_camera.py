@@ -1,8 +1,12 @@
+"""Tests for test_render3d_preview_camera."""
+
 from surface_mapper.render3d.preview import _set_north_up_camera
 
 
 class _FakeCamera:
+    """_FakeCamera."""
     def __init__(self) -> None:
+        """Internal helper for init."""
         self.focal_point = None
         self.position = None
         self.view_up = None
@@ -10,27 +14,35 @@ class _FakeCamera:
         self.parallel_scale = None
 
     def SetFocalPoint(self, x, y, z) -> None:
+        """Setfocalpoint."""
         self.focal_point = (x, y, z)
 
     def SetPosition(self, x, y, z) -> None:
+        """Setposition."""
         self.position = (x, y, z)
 
     def SetViewUp(self, x, y, z) -> None:
+        """Setviewup."""
         self.view_up = (x, y, z)
 
     def SetParallelProjection(self, value) -> None:
+        """Setparallelprojection."""
         self.parallel_projection = bool(value)
 
     def SetParallelScale(self, value) -> None:
+        """Setparallelscale."""
         self.parallel_scale = float(value)
 
 
 class _FakePlotter:
+    """_FakePlotter."""
     def __init__(self) -> None:
+        """Internal helper for init."""
         self.camera = _FakeCamera()
 
 
 def test_set_north_up_camera_uses_vtk_setters() -> None:
+    """Test set north up camera uses vtk setters."""
     plotter = _FakePlotter()
     _set_north_up_camera(plotter, bounds=(-10.0, 20.0, 5.0, 25.0, -1.0, 4.0), base_z=0.0)
 

@@ -1,3 +1,5 @@
+"""surface_mapper.render.scales module."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -5,6 +7,7 @@ import pandas as pd
 
 
 def _normalize(values: pd.Series, ref: pd.Series | None = None) -> pd.Series:
+    """Internal helper for normalize."""
     basis = ref if ref is not None else values
     basis = basis.astype(float)
     min_v = float(values.min())
@@ -18,6 +21,7 @@ def _normalize(values: pd.Series, ref: pd.Series | None = None) -> pd.Series:
 
 
 def scale_values(values: pd.Series, scale: str, gamma: float, reference: pd.Series | None = None) -> pd.Series:
+    """Scale values."""
     vals = values.astype(float)
     if vals.empty:
         return vals

@@ -1,3 +1,5 @@
+"""surface_mapper.surface.build module."""
+
 from __future__ import annotations
 
 import csv
@@ -11,6 +13,7 @@ import duckdb
 from surface_mapper.contracts.normalized import NORMALIZED_EVENTS_TABLE, NORMALIZED_OBS_TABLE
 from surface_mapper.contracts.surface import SURFACE_TABLE_DEFAULT
 from surface_mapper.grid.h3_grid import h3_cell
+from surface_mapper.store.duckdb_store import normalize_sql_identifier, quote_sql_identifier
 
 logger = logging.getLogger("surface_mapper.surface.build")
 
@@ -25,9 +28,12 @@ SEASON_CASE_SQL = (
 
 
 def create_surface_table(conn: duckdb.DuckDBPyConnection, table_name: str = SURFACE_TABLE_DEFAULT) -> None:
+    """Create surface table."""
+    normalized_name = normalize_sql_identifier(table_name)
+    table = quote_sql_identifier(normalized_name)
     conn.execute(
         f"""
-        CREATE TABLE IF NOT EXISTS {table_name} (
+        CREATE TABLE IF NOT EXISTS {table} (
             dataset     VARCHAR NOT NULL,
             grid        VARCHAR NOT NULL,
             resolution  INTEGER NOT NULL,
@@ -41,11 +47,12 @@ def create_surface_table(conn: duckdb.DuckDBPyConnection, table_name: str = SURF
         );
         """
     )
-    conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{table_name}_metric ON {table_name}(metric);")
-    conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{table_name}_cell_id ON {table_name}(cell_id);")
+    conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{normalized_name}_metric ON {table}(metric);")
+    conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{normalized_name}_cell_id ON {table}(cell_id);")
 
 
 def create_event_cells_table(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create event cells table."""
     conn.execute(
         f"""
         CREATE TABLE IF NOT EXISTS {EVENT_CELLS_TABLE} (
@@ -60,6 +67,7 @@ def create_event_cells_table(conn: duckdb.DuckDBPyConnection) -> None:
 
 
 def create_event_cells_indexes(conn: duckdb.DuckDBPyConnection) -> None:
+    """Create event cells indexes."""
     conn.execute(
         f"CREATE INDEX IF NOT EXISTS idx_{EVENT_CELLS_TABLE}_event_id ON {EVENT_CELLS_TABLE}(event_id);"
     )
@@ -75,6 +83,7 @@ def create_event_cells_indexes(conn: duckdb.DuckDBPyConnection) -> None:
 
 
 def drop_event_cells_indexes(conn: duckdb.DuckDBPyConnection) -> None:
+    """Drop event cells indexes."""
     conn.execute(f"DROP INDEX IF EXISTS idx_{EVENT_CELLS_TABLE}_event_id;")
     conn.execute(f"DROP INDEX IF EXISTS idx_{EVENT_CELLS_TABLE}_cell_id;")
     conn.execute(f"DROP INDEX IF EXISTS idx_{EVENT_CELLS_TABLE}_observed_at;")
@@ -88,6 +97,7 @@ def build_event_cells(
     force: bool = False,
     batch_size: int = 50000,
 ) -> int:
+    """Build event cells."""
     create_event_cells_table(conn)
     create_event_cells_indexes(conn)
 
@@ -221,18 +231,21 @@ def build_event_cells(
 
 
 def _metric_delete_sql(table_name: str, metric: str, time_slice: str | None) -> tuple[str, list[object]]:
+    """Internal helper for metric delete sql."""
+    table = quote_sql_identifier(table_name)
     if time_slice is None:
         return (
-            f"DELETE FROM {table_name} WHERE dataset = ? AND resolution = ? AND metric = ? AND time_slice IS NULL;",
+            f"DELETE FROM {table} WHERE dataset = ? AND resolution = ? AND metric = ? AND time_slice IS NULL;",
             [],
         )
     return (
-        f"DELETE FROM {table_name} WHERE dataset = ? AND resolution = ? AND metric = ? AND time_slice = ?;",
+        f"DELETE FROM {table} WHERE dataset = ? AND resolution = ? AND metric = ? AND time_slice = ?;",
         [time_slice],
     )
 
 
 def _event_cells_scope(time_slice: str | None) -> tuple[str, list[object]]:
+    """Internal helper for event cells scope."""
     if time_slice is None:
         return ("", [])
     return (f" AND {SEASON_CASE_SQL} = ?", [time_slice])
@@ -245,14 +258,16 @@ def write_surface_attention(
     out_table: str,
     time_slice: str | None = None,
 ) -> int:
+    """Write surface attention."""
     create_surface_table(conn, out_table)
+    out_table_sql = quote_sql_identifier(out_table)
     delete_sql, delete_extra = _metric_delete_sql(out_table, "attention", time_slice)
     conn.execute(delete_sql, [dataset, res, "attention", *delete_extra])
 
     scope_sql, scope_args = _event_cells_scope(time_slice)
     conn.execute(
         f"""
-        INSERT INTO {out_table}
+        INSERT INTO {out_table_sql}
         SELECT
             ?,
             'h3',
@@ -274,13 +289,13 @@ def write_surface_attention(
     if time_slice is None:
         return int(
             conn.execute(
-                f"SELECT COUNT(*) FROM {out_table} WHERE dataset=? AND resolution=? AND metric='attention' AND time_slice IS NULL;",
+                f"SELECT COUNT(*) FROM {out_table_sql} WHERE dataset=? AND resolution=? AND metric='attention' AND time_slice IS NULL;",
                 [dataset, res],
             ).fetchone()[0]
         )
     return int(
         conn.execute(
-            f"SELECT COUNT(*) FROM {out_table} WHERE dataset=? AND resolution=? AND metric='attention' AND time_slice=?;",
+            f"SELECT COUNT(*) FROM {out_table_sql} WHERE dataset=? AND resolution=? AND metric='attention' AND time_slice=?;",
             [dataset, res, time_slice],
         ).fetchone()[0]
     )
@@ -294,14 +309,16 @@ def write_surface_richness_unique(
     time_slice: str | None = None,
     min_checklists: int | None = None,
 ) -> int:
+    """Write surface richness unique."""
     create_surface_table(conn, out_table)
+    out_table_sql = quote_sql_identifier(out_table)
     delete_sql, delete_extra = _metric_delete_sql(out_table, "richness_unique", time_slice)
     conn.execute(delete_sql, [dataset, res, "richness_unique", *delete_extra])
 
     scope_sql, scope_args = _event_cells_scope(time_slice)
     conn.execute(
         f"""
-        INSERT INTO {out_table}
+        INSERT INTO {out_table_sql}
         WITH ec_filtered AS (
             SELECT dataset, event_id, cell_id
             FROM {EVENT_CELLS_TABLE}
@@ -341,13 +358,13 @@ def write_surface_richness_unique(
     if time_slice is None:
         return int(
             conn.execute(
-                f"SELECT COUNT(*) FROM {out_table} WHERE dataset=? AND resolution=? AND metric='richness_unique' AND time_slice IS NULL;",
+                f"SELECT COUNT(*) FROM {out_table_sql} WHERE dataset=? AND resolution=? AND metric='richness_unique' AND time_slice IS NULL;",
                 [dataset, res],
             ).fetchone()[0]
         )
     return int(
         conn.execute(
-            f"SELECT COUNT(*) FROM {out_table} WHERE dataset=? AND resolution=? AND metric='richness_unique' AND time_slice=?;",
+            f"SELECT COUNT(*) FROM {out_table_sql} WHERE dataset=? AND resolution=? AND metric='richness_unique' AND time_slice=?;",
             [dataset, res, time_slice],
         ).fetchone()[0]
     )
@@ -361,14 +378,16 @@ def write_surface_richness_mean(
     time_slice: str | None = None,
     min_checklists: int | None = None,
 ) -> int:
+    """Write surface richness mean."""
     create_surface_table(conn, out_table)
+    out_table_sql = quote_sql_identifier(out_table)
     delete_sql, delete_extra = _metric_delete_sql(out_table, "richness_mean", time_slice)
     conn.execute(delete_sql, [dataset, res, "richness_mean", *delete_extra])
 
     scope_sql, scope_args = _event_cells_scope(time_slice)
     conn.execute(
         f"""
-        INSERT INTO {out_table}
+        INSERT INTO {out_table_sql}
         WITH ec_filtered AS (
             SELECT dataset, event_id, cell_id
             FROM {EVENT_CELLS_TABLE}
@@ -411,13 +430,13 @@ def write_surface_richness_mean(
     if time_slice is None:
         return int(
             conn.execute(
-                f"SELECT COUNT(*) FROM {out_table} WHERE dataset=? AND resolution=? AND metric='richness_mean' AND time_slice IS NULL;",
+                f"SELECT COUNT(*) FROM {out_table_sql} WHERE dataset=? AND resolution=? AND metric='richness_mean' AND time_slice IS NULL;",
                 [dataset, res],
             ).fetchone()[0]
         )
     return int(
         conn.execute(
-            f"SELECT COUNT(*) FROM {out_table} WHERE dataset=? AND resolution=? AND metric='richness_mean' AND time_slice=?;",
+            f"SELECT COUNT(*) FROM {out_table_sql} WHERE dataset=? AND resolution=? AND metric='richness_mean' AND time_slice=?;",
             [dataset, res, time_slice],
         ).fetchone()[0]
     )

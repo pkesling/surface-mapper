@@ -1,3 +1,5 @@
+"""Tests for test_render3d_transforms."""
+
 import geopandas as gpd
 import numpy as np
 import pytest
@@ -7,6 +9,7 @@ from surface_mapper.render3d.transforms import TARGET_XY_SIZE, normalize_xy_poin
 
 
 def test_transform_xy_center_and_km_scale() -> None:
+    """Test transform xy center and km scale."""
     square = Polygon(
         [
             (900.0, 1900.0),
@@ -28,6 +31,7 @@ def test_transform_xy_center_and_km_scale() -> None:
 
 
 def test_normalize_xy_points_scales_max_extent_to_target() -> None:
+    """Test normalize xy points scales max extent to target."""
     points = np.array(
         [
             [10.0, -3.0, 0.0],
@@ -47,6 +51,7 @@ def test_normalize_xy_points_scales_max_extent_to_target() -> None:
 
 
 def test_normalize_xy_points_disabled_keeps_extents_unchanged() -> None:
+    """Test normalize xy points disabled keeps extents unchanged."""
     points = np.array(
         [
             [1.0, 2.0, 0.0],

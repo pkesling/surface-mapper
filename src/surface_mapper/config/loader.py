@@ -1,3 +1,5 @@
+"""surface_mapper.config.loader module."""
+
 from __future__ import annotations
 
 import json
@@ -6,6 +8,7 @@ from typing import Any
 
 
 def default_config_path() -> Path:
+    """Default config path."""
     local_path = Path.cwd() / "config.json"
     if local_path.exists():
         return local_path
@@ -13,6 +16,7 @@ def default_config_path() -> Path:
 
 
 def load_json_config(path: Path | None) -> dict[str, Any]:
+    """Load json config."""
     config_path = path if path is not None else default_config_path()
     if not config_path.exists():
         return {}
@@ -24,6 +28,7 @@ def load_json_config(path: Path | None) -> dict[str, Any]:
 
 
 def render_flat_config(payload: dict[str, Any]) -> dict[str, Any]:
+    """Render flat config."""
     render = payload.get("render")
     if not isinstance(render, dict):
         return {}
@@ -34,6 +39,7 @@ def render_flat_config(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def render_3d_config(payload: dict[str, Any]) -> dict[str, Any]:
+    """Render 3d config."""
     render = payload.get("render")
     if not isinstance(render, dict):
         return {}

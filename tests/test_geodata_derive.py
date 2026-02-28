@@ -1,3 +1,5 @@
+"""Tests for test_geodata_derive."""
+
 from pathlib import Path
 
 import geopandas as gpd
@@ -7,6 +9,7 @@ from surface_mapper.geodata.derive import derive_boundary, derive_lakes, derive_
 
 
 def test_derive_outputs_from_geojson_inputs(tmp_path: Path) -> None:
+    """Test derive outputs from geojson inputs."""
     states_path = tmp_path / "states.geojson"
     lakes_path = tmp_path / "lakes.geojson"
 

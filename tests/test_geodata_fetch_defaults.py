@@ -1,3 +1,5 @@
+"""Tests for test_geodata_fetch_defaults."""
+
 import os
 from pathlib import Path
 
@@ -12,6 +14,7 @@ runner = CliRunner()
 
 @pytest.mark.network
 def test_geodata_fetch_defaults_smoke(tmp_path: Path) -> None:
+    """Test geodata fetch defaults smoke."""
     if os.getenv("SURFACEMAPPER_OFFLINE") == "1":
         pytest.skip("SURFACEMAPPER_OFFLINE=1")
 

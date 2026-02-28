@@ -1,3 +1,5 @@
+"""surface_mapper.surface.__init__ module."""
+
 from .build import (
     build_event_cells,
     create_event_cells_table,

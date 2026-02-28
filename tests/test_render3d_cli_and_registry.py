@@ -1,3 +1,5 @@
+"""Tests for test_render3d_cli_and_registry."""
+
 from pathlib import Path
 
 import duckdb
@@ -14,12 +16,14 @@ runner = CliRunner()
 
 
 def test_render3d_registry_contains_modes() -> None:
+    """Test render3d registry contains modes."""
     registry = get_builder_registry()
     assert "hex-prism" in registry
     assert "terrain" in registry
 
 
 def test_render_3d_terrain_mode_is_stubbed(tmp_path: Path) -> None:
+    """Test render 3d terrain mode is stubbed."""
     db_path = tmp_path / "render3d-terrain.duckdb"
     out_path = tmp_path / "out.glb"
 
@@ -64,6 +68,7 @@ def test_render_3d_terrain_mode_is_stubbed(tmp_path: Path) -> None:
 
 
 def test_render_3d_preview_smoke_with_neighbors_and_water(tmp_path: Path, monkeypatch) -> None:
+    """Test render 3d preview smoke with neighbors and water."""
     db_path = tmp_path / "render3d-preview.duckdb"
     out_path = tmp_path / "out.glb"
     preview_path = tmp_path / "preview.png"

@@ -1,3 +1,5 @@
+"""Tests for test_render3d_io_metadata."""
+
 import json
 from pathlib import Path
 
@@ -6,6 +8,7 @@ from surface_mapper.render3d.io import write_export_metadata
 
 
 def _build_min_glb(payload: dict[str, object]) -> bytes:
+    """Internal helper for build min glb."""
     json_chunk = json.dumps(payload, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
     json_pad = (-len(json_chunk)) % 4
     if json_pad:
@@ -25,6 +28,7 @@ def _build_min_glb(payload: dict[str, object]) -> bytes:
 
 
 def _read_glb_json(path: Path) -> dict[str, object]:
+    """Internal helper for read glb json."""
     blob = path.read_bytes()
     assert blob[:4] == b"glTF"
     chunk_len = int.from_bytes(blob[12:16], "little", signed=False)
@@ -35,6 +39,7 @@ def _read_glb_json(path: Path) -> dict[str, object]:
 
 
 def test_write_export_metadata_embeds_metadata_into_glb(tmp_path: Path) -> None:
+    """Test write export metadata embeds metadata into glb."""
     out_path = tmp_path / "mesh.glb"
     out_path.write_bytes(_build_min_glb({"asset": {"version": "2.0"}}))
 

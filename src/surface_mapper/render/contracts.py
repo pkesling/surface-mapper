@@ -1,3 +1,5 @@
+"""surface_mapper.render.contracts module."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -14,6 +16,7 @@ RenderLayoutMode = Literal["single", "quad"]
 
 @dataclass(frozen=True)
 class SurfaceQuery:
+    """SurfaceQuery."""
     db_path: str
     table: str = "surface_cells"
     dataset: str = "ebird-ebd"
@@ -26,6 +29,7 @@ class SurfaceQuery:
 
 @dataclass(frozen=True)
 class RenderSpec:
+    """RenderSpec."""
     style: RenderStyle = "classic"
     scale: RenderScale = "gamma"
     gamma: float = 0.6
@@ -72,4 +76,5 @@ class RenderSpec:
 
 @dataclass(frozen=True)
 class RenderArtifacts:
+    """RenderArtifacts."""
     output_path: str

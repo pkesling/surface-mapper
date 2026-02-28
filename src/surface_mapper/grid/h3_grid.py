@@ -1,9 +1,12 @@
+"""surface_mapper.grid.h3_grid module."""
+
 from __future__ import annotations
 
 import h3
 
 
 def h3_cell(lat: float, lon: float, res: int) -> str:
+    """H3 cell."""
     return h3.latlng_to_cell(lat, lon, res)
 
 

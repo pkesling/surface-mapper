@@ -1,3 +1,5 @@
+"""Tests for test_surface_build_smoke."""
+
 from datetime import date
 from pathlib import Path
 
@@ -18,6 +20,7 @@ from surface_mapper.surface.build import (
 
 
 def test_surface_build_attention_and_richness_unique(tmp_path: Path) -> None:
+    """Test surface build attention and richness unique."""
     db_path = tmp_path / "surface-smoke.duckdb"
     conn = DuckDBStore(db_path).connect()
     try:

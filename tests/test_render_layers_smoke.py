@@ -1,3 +1,5 @@
+"""Tests for test_render_layers_smoke."""
+
 import json
 from pathlib import Path
 
@@ -12,6 +14,7 @@ runner = CliRunner()
 
 
 def _write_geojson(path: Path, properties: dict[str, str], ring: list[tuple[float, float]]) -> None:
+    """Internal helper for write geojson."""
     feature = {
         "type": "Feature",
         "properties": properties,
@@ -25,6 +28,7 @@ def _write_geojson(path: Path, properties: dict[str, str], ring: list[tuple[floa
 
 
 def test_render_flat_with_region_neighbors_water(tmp_path: Path) -> None:
+    """Test render flat with region neighbors water."""
     db_path = tmp_path / "render-layers.duckdb"
     out_path = tmp_path / "render-layers.png"
 

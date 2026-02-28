@@ -1,3 +1,5 @@
+"""Tests for test_cli_smoke."""
+
 from pathlib import Path
 import re
 import shutil
@@ -17,10 +19,12 @@ ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 
 def _plain(text: str) -> str:
+    """Internal helper for plain."""
     return ANSI_ESCAPE_RE.sub("", text)
 
 
 def test_help_runs() -> None:
+    """Test help runs."""
     result = runner.invoke(app, ["--help"])
     output = _plain(result.output)
     assert result.exit_code == 0
@@ -29,11 +33,13 @@ def test_help_runs() -> None:
 
 
 def test_subcommand_help_runs() -> None:
+    """Test subcommand help runs."""
     result = runner.invoke(app, ["ingest", "--help"])
     assert result.exit_code == 0
 
 
 def test_run_help_runs() -> None:
+    """Test run help runs."""
     result = runner.invoke(app, ["run", "--help"])
     output = _plain(result.output)
     assert result.exit_code == 0
@@ -43,6 +49,7 @@ def test_run_help_runs() -> None:
 
 
 def test_run_requires_sampling_for_ebird(tmp_path: Path) -> None:
+    """Test run requires sampling for ebird."""
     obs_path = tmp_path / "obs.tsv"
     obs_path.write_text("dummy\n", encoding="utf-8")
 
@@ -64,6 +71,7 @@ def test_run_requires_sampling_for_ebird(tmp_path: Path) -> None:
 
 
 def test_run_orchestrates_and_cleans_temp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test run orchestrates and cleans temp db."""
     obs_path = tmp_path / "obs.tsv"
     sampling_path = tmp_path / "sampling.tsv"
     out_path = tmp_path / "out.png"
@@ -117,6 +125,7 @@ def test_run_orchestrates_and_cleans_temp_db(tmp_path: Path, monkeypatch: pytest
 
 
 def test_render3d_help_runs() -> None:
+    """Test render3d help runs."""
     result = runner.invoke(app, ["render3d", "--help"])
     output = _plain(result.output)
     assert result.exit_code == 0
@@ -126,6 +135,7 @@ def test_render3d_help_runs() -> None:
 
 
 def test_render_blender_help_runs() -> None:
+    """Test render blender help runs."""
     result = runner.invoke(app, ["render", "blender", "--help"])
     output = _plain(result.output)
     assert result.exit_code == 0
@@ -135,6 +145,7 @@ def test_render_blender_help_runs() -> None:
 
 
 def test_render3d_dry_run_prints_command(tmp_path: Path) -> None:
+    """Test render3d dry run prints command."""
     echo_bin = shutil.which("echo")
     if echo_bin is None:
         return
@@ -162,6 +173,7 @@ def test_render3d_dry_run_prints_command(tmp_path: Path) -> None:
 
 
 def test_ingest_ebird_ebd_smoke(tmp_path: Path) -> None:
+    """Test ingest ebird ebd smoke."""
     obs_path = tmp_path / "obs.tsv"
     db_path = tmp_path / "out.duckdb"
 
@@ -209,6 +221,7 @@ def test_ingest_ebird_ebd_smoke(tmp_path: Path) -> None:
 
 
 def test_export_surface_smoke(tmp_path: Path) -> None:
+    """Test export surface smoke."""
     db_path = tmp_path / "out.duckdb"
     parquet_path = tmp_path / "surfaces.parquet"
 

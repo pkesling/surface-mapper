@@ -1,3 +1,5 @@
+"""surface_mapper.store.__init__ module."""
+
 from .duckdb_store import (
     DuckDBStore,
     count_rows,

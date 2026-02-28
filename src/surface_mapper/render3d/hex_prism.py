@@ -1,3 +1,5 @@
+"""surface_mapper.render3d.hex_prism module."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -14,6 +16,7 @@ if TYPE_CHECKING:
 
 
 def _require_pyvista():
+    """Internal helper for require pyvista."""
     try:
         import pyvista as pv
     except ImportError as exc:
@@ -24,6 +27,7 @@ def _require_pyvista():
 
 
 def _polygon_base_mesh(polygon: Polygon, base_z: float):
+    """Internal helper for polygon base mesh."""
     pv = _require_pyvista()
     ring = list(polygon.exterior.coords)
     if len(ring) < 4:
@@ -36,6 +40,7 @@ def _polygon_base_mesh(polygon: Polygon, base_z: float):
 
 
 def _mesh_parts_for_geometry(geom):
+    """Internal helper for mesh parts for geometry."""
     if isinstance(geom, Polygon):
         return [geom]
     if isinstance(geom, MultiPolygon):
@@ -44,6 +49,7 @@ def _mesh_parts_for_geometry(geom):
 
 
 def _triangle_to_polydata(triangle: Polygon, z: float):
+    """Internal helper for triangle to polydata."""
     pv = _require_pyvista()
     coords = list(triangle.exterior.coords)
     if len(coords) < 4:
@@ -82,7 +88,9 @@ def polygon_gdf_to_flat_mesh(gdf: gpd.GeoDataFrame, z: float, color_name: str):
 
 
 class HexPrismBuilder(Surface3DBuilder):
+    """HexPrismBuilder."""
     def build(self, gdf: gpd.GeoDataFrame, spec: Surface3DSpec) -> pv.DataSet:
+        """Build."""
         meshes = []
 
         for row in gdf.itertuples(index=False):

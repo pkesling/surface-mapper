@@ -1,3 +1,5 @@
+"""Tests for test_render_presets_smoke."""
+
 from pathlib import Path
 import json
 
@@ -12,6 +14,7 @@ runner = CliRunner()
 
 
 def test_render_preset_neon_single_smoke(tmp_path: Path) -> None:
+    """Test render preset neon single smoke."""
     db_path = tmp_path / "render-neon.duckdb"
     out_path = tmp_path / "render-neon.png"
     region_path = tmp_path / "region.geojson"
@@ -86,6 +89,7 @@ def test_render_preset_neon_single_smoke(tmp_path: Path) -> None:
 
 
 def test_render_preset_classic_quad_smoke(tmp_path: Path) -> None:
+    """Test render preset classic quad smoke."""
     db_path = tmp_path / "render-quad.duckdb"
     out_path = tmp_path / "render-quad.png"
     region_path = tmp_path / "region.geojson"

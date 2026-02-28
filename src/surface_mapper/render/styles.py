@@ -1,3 +1,5 @@
+"""surface_mapper.render.styles module."""
+
 from __future__ import annotations
 
 from matplotlib import colormaps
@@ -10,6 +12,7 @@ def get_cmap(
     colormap: str | None = None,
     diverging_colormap: str | None = None,
 ) -> Colormap:
+    """Get cmap."""
     if colormap:
         return colormaps[colormap]
 

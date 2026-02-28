@@ -1,9 +1,12 @@
+"""surface_mapper.render.layers module."""
+
 from __future__ import annotations
 
 import geopandas as gpd
 
 
 def load_layer(path: str) -> gpd.GeoDataFrame:
+    """Load layer."""
     gdf = gpd.read_file(path)
     if gdf.empty:
         raise ValueError(f"Layer is empty: {path}")
@@ -15,6 +18,7 @@ def load_layer(path: str) -> gpd.GeoDataFrame:
 
 
 def select_polygon(gdf: gpd.GeoDataFrame, key: str, value: str | None) -> gpd.GeoDataFrame:
+    """Select polygon."""
     selected = gdf
     if value is not None:
         if key not in gdf.columns:
@@ -33,6 +37,7 @@ def select_polygon(gdf: gpd.GeoDataFrame, key: str, value: str | None) -> gpd.Ge
 
 
 def reproject_to(gdf: gpd.GeoDataFrame, crs: str | None) -> gpd.GeoDataFrame:
+    """Reproject to."""
     if crs is None:
         return gdf
     return gdf.to_crs(crs)

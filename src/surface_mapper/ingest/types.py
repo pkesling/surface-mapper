@@ -1,3 +1,5 @@
+"""surface_mapper.ingest.types module."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -6,6 +8,7 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class IngestRequest:
+    """IngestRequest."""
     dataset: str
     obs_path: Path
     sampling_path: Path | None
@@ -18,6 +21,7 @@ class IngestRequest:
 
 @dataclass(frozen=True)
 class IngestStats:
+    """IngestStats."""
     rows_read_obs: int
     inserted_obs: int
     batches_flushed_obs: int

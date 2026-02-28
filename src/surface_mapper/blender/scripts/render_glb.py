@@ -1,3 +1,5 @@
+"""surface_mapper.blender.scripts.render_glb module."""
+
 import argparse
 import sys
 from pathlib import Path
@@ -5,6 +7,7 @@ from typing import Any
 
 
 def _require_bpy():
+    """Internal helper for require bpy."""
     try:
         import bpy
     except ImportError as exc:
@@ -16,6 +19,7 @@ def _require_bpy():
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build parser."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--glb", required=True)
     parser.add_argument("--out", required=True)
@@ -27,12 +31,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def resolve_paths(glb: str, out: str) -> tuple[Path, Path]:
+    """Resolve paths."""
     glb_path = Path(glb).expanduser().resolve()
     out_path = Path(out).expanduser().resolve()
     return glb_path, out_path
 
 
 def ensure_collection(bpy: Any, name: str):
+    """Ensure collection."""
     col = bpy.data.collections.get(name)
     if col is None:
         col = bpy.data.collections.new(name)
@@ -42,6 +48,7 @@ def ensure_collection(bpy: Any, name: str):
 
 def clear_collection(bpy: Any, col: Any) -> None:
     # Remove all objects linked to this collection
+    """Clear collection."""
     objs = list(col.objects)
     for obj in objs:
         col.objects.unlink(obj)
@@ -51,6 +58,7 @@ def clear_collection(bpy: Any, col: Any) -> None:
 
 
 def import_glb(bpy: Any, glb_path: Path) -> list[Any]:
+    """Import glb."""
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=str(glb_path))
     after = set(bpy.data.objects)
@@ -59,6 +67,7 @@ def import_glb(bpy: Any, glb_path: Path) -> list[Any]:
 
 
 def link_objects_to_collection(objects: list[Any], col: Any) -> None:
+    """Link objects to collection."""
     for obj in objects:
         # Only keep meshes (ignore cameras/lights/empties unless you want them)
         if obj.type != "MESH":
@@ -71,6 +80,7 @@ def link_objects_to_collection(objects: list[Any], col: Any) -> None:
 
 
 def configure_render(bpy: Any, engine: str, samples: int, resolution: int) -> None:
+    """Configure render."""
     scene = bpy.context.scene
     scene.render.engine = engine
     scene.render.resolution_x = resolution
@@ -83,6 +93,7 @@ def configure_render(bpy: Any, engine: str, samples: int, resolution: int) -> No
 
 
 def main(argv: list[str]) -> int:
+    """Main."""
     parser = build_parser()
     args = parser.parse_args(argv)
 

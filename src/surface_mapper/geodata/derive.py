@@ -1,3 +1,5 @@
+"""surface_mapper.geodata.derive module."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -17,6 +19,7 @@ LAKES_BOUNDARY_BUFFER_METERS = 20_000.0
 
 
 def derive_boundary(states_path: Path, state: str, out_path: Path, crs: str) -> Path:
+    """Derive boundary."""
     states = gpd.read_file(states_path)
     if "STUSPS" not in states.columns:
         raise ValueError(f"Expected STUSPS field in states layer: {states_path}")
@@ -43,6 +46,7 @@ def derive_boundary(states_path: Path, state: str, out_path: Path, crs: str) -> 
 
 
 def derive_neighbors(states_path: Path, neighbor_codes: list[str], out_path: Path, crs: str) -> Path:
+    """Derive neighbors."""
     states = gpd.read_file(states_path)
     if "STUSPS" not in states.columns:
         raise ValueError(f"Expected STUSPS field in states layer: {states_path}")
