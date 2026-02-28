@@ -1,0 +1,22 @@
+/data/geodata/
+/outputs/
+/src/surface_mapper.egg-info/
+/.venv/
+
+# Python/runtime caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local tooling/OS files
+.DS_Store
+.idea/
+
+# Local config and databases
+config.json
+data/*.duckdb
+
+# Blender generated outputs
+/assets/blender/outputs/
+*.blend
+*.blend1

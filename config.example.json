@@ -1,0 +1,37 @@
+{
+  "render": {
+    "flat": {
+      "db": "data/surfaces.duckdb",
+      "table": "surface_cells",
+      "dataset": "ebird-ebd",
+      "metric": "attention",
+      "res": 6,
+      "time_slice": null,
+      "min_support": null,
+      "style": "classic",
+      "scale": "gamma",
+      "gamma": 0.6,
+      "projection": "auto",
+      "region_file": null,
+      "neighbors_file": null,
+      "water_file": null,
+      "region_key": "STUSPS",
+      "region_value": null,
+      "neighbors": true,
+      "mask_water": false,
+      "title": null,
+      "subtitle": null,
+      "width_px": 2200,
+      "height_px": 1400,
+      "dpi": 200,
+      "out": "outputs/attention.png"
+    },
+    "3d": {
+      "center": true,
+      "center_origin": "region",
+      "scale_units": "m",
+      "normalize_xy": true,
+      "z_exaggeration": 1.0
+    }
+  }
+}
