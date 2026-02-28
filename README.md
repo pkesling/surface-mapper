@@ -139,6 +139,18 @@ Metrics:
 - `richness_unique`
 - `richness_mean`
 
+### Metric definitions
+- `attention`: Event/checklist density per cell. For each cell, `value` is `COUNT(*)` of events mapped to that cell.
+- `richness_unique`: Distinct taxa richness per cell. For each cell, `value` is `COUNT(DISTINCT taxon)` across observations linked to events in that cell.
+- `richness_mean`: Mean checklist richness per cell. For each cell, `value` is the average of per-event distinct taxon counts for events in that cell.
+
+`support` field semantics:
+- `attention`: `support` equals event/checklist count in the cell.
+- `richness_unique` and `richness_mean`: `support` equals checklist/event count in the cell.
+
+Seasonal behavior:
+- When `--seasonal` is used, each metric is computed per season (`winter`, `spring`, `summer`, `fall`) using event `observed_at` month.
+
 ---
 
 ## Geodata
